@@ -1,0 +1,29 @@
+FROM debian
+MAINTAINER Zach White <skullydazed@gmail.com>
+
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    avr-libc \
+    binutils-arm-none-eabi \
+    binutils-avr \
+    build-essential \
+    dfu-programmer \
+    dfu-util \
+    gcc \
+    gcc-arm-none-eabi \
+    gcc-avr \
+    git \
+    libnewlib-arm-none-eabi \
+    python3 \
+    python3-pip \
+    unzip \
+    wget \
+    zip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /
+RUN git clone https://github.com/skullydazed/qmk_compiler_workflow.git
+WORKDIR /qmk_compiler_workflow
+RUN pip3 install -r requirements.txt
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+CMD rq worker
