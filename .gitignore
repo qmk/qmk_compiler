@@ -1,4 +1,5 @@
 .idea
+minio_data
 qmk_firmware
 firmwares
 __pycache__
