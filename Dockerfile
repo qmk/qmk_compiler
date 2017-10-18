@@ -26,4 +26,4 @@ WORKDIR /qmk_compiler_worker
 RUN pip3 install -r requirements.txt
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-CMD rq worker
+CMD rq worker -u redis://@redis.qmk-api:6379/0
