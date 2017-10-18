@@ -115,10 +115,19 @@ def find_firmware_file():
             return file
 
 
-def store_firmware_metadata(result):
+def store_firmware_metadata(job, result):
     """Save `result` as a JSON file along side the firmware.
     """
-    json_data = json.dumps(result)
+    json_data = json.dumps({
+        'created_at': job.created_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
+        'enqueued_at': job.enqueued_at.strftime('%Y-%m-%d %H:%M:%S %Z'),
+        'id': job.id,
+        'is_failed': result['returncode'] != 0,
+        'is_finished': True,
+        'is_queued': False,
+        'is_started': False,
+        'result': result
+    })
     json_obj = BytesIO(json_data.encode('utf-8'))
     filename = '%s.json' % result['id']
 
@@ -276,6 +285,6 @@ def compile_firmware(keyboard, keymap, layout, layers):
     # Store the results
     store_firmware_binary(result)
     store_firmware_source(result)
-    store_firmware_metadata(result)
+    store_firmware_metadata(job, result)
 
     return result
