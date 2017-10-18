@@ -25,7 +25,7 @@ MINIO_BUCKET = environ.get('MINIO_BUCKET', 'compiled-qmk-firmware')
 MINIO_ACCESS_KEY = environ.get('MINIO_ACCESS_KEY', '')
 MINIO_SECRET_KEY = environ.get('MINIO_SECRET_KEY', '')
 MINIO_SECURE = False
-REDIS_HOST = environ.get('REDIS_HOST', 'redis.qmk-compile-api')
+REDIS_HOST = environ.get('REDIS_HOST', 'redis.qmk-api')
 
 # The `keymap.c` template to use when a keyboard doesn't have its own
 DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
@@ -40,6 +40,7 @@ __KEYMAP_GOES_HERE__
 
 # Objects we need to instaniate
 hashids = Hashids()
+print('*** Connecting to redis: %s' % REDIS_HOST)
 redis = Redis(REDIS_HOST)
 minio = Minio(MINIO_HOST, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=MINIO_SECURE)
 
