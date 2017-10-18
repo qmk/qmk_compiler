@@ -40,7 +40,7 @@ __KEYMAP_GOES_HERE__
 
 # Objects we need to instaniate
 hashids = Hashids()
-redis = Redis()
+redis = Redis(REDIS_HOST)
 minio = Minio(MINIO_HOST, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=MINIO_SECURE)
 
 # Make sure our minio store is properly setup
