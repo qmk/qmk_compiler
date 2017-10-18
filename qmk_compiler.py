@@ -1,14 +1,12 @@
 import json
 import logging
-import os
-
 import minio.helpers
-
 from hashids import Hashids
+from io import BytesIO
 from minio import Minio
 from minio.error import ResponseError, BucketAlreadyOwnedByYou, BucketAlreadyExists
-from os import chdir, environ, mkdir
-from os.path import exists
+from os import chdir, environ, mkdir, listdir, remove
+from os.path import exists, normpath
 from redis import Redis
 from rq import get_current_job
 from rq.decorators import job
@@ -30,7 +28,7 @@ MINIO_SECURE = False
 REDIS_HOST = environ.get('REDIS_HOST', 'redis.qmk-compile-api')
 
 # The `keymap.c` template to use when a keyboard doesn't have its own
-DEFAULT_KEYMAP_C = """#include "__KEYBOARD_NAME__.h"
+DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
 
 // Helpful defines
 #define _______ KC_TRNS
@@ -53,22 +51,34 @@ except BucketAlreadyOwnedByYou as err:
 except BucketAlreadyExists as err:
     pass
 
+
+# Exceptions
+class Error(Exception):
+    pass
+
+
+class NoSuchKeyboardError(Error):
+    """Raised when we can't find a keyboard/keymap directory.
+    """
+    def __init__(self, message):
+        self.message = message
+
+
 # Local Helper Functions
-def generate_keymap_c(keyboard_name, layers):
+def generate_keymap_c(result, layers):
     if exists('qmk_firmware/keyboards/%s/templates/keymap.c'):
-        keymap_c = open('keyboards/%s/keymap.c' % keyboard_name).read()
+        keymap_c = open('keyboards/%s/keymap.c' % result['keyboard']).read()
     else:
-        keymap_c = DEFAULT_KEYMAP_C.replace('__KEYBOARD_NAME__', keyboard_name)
+        keymap_c = DEFAULT_KEYMAP_C
 
-    layers = []
+    layer_txt = []
     for layer_num, layer in enumerate(layers):
-        rows = ['\t\t{' + ', '.join(row) + '}' for row in layer]
-        layer_txt = ['\t[%s] = {' % layer_num]
-        layer_txt.append(', \\\n'.join(rows))
-        layer_txt.append('\t}')
-        layers.append(''.join(layer_txt))
+        if layer_num != 0:
+            layer_txt[-1] = layer_txt[-1] + ','
+        layer_keys = ', '.join(layer)
+        layer_txt.append('\t[%s] = %s(%s)' % (layer_num, result['layout'], layer_keys))
 
-    keymap = '\n'.join(layers)
+    keymap = '\n'.join(layer_txt)
     keymap_c = keymap_c.replace('__KEYMAP_GOES_HERE__', keymap)
 
     return keymap_c
@@ -91,6 +101,44 @@ def checkout_qmk(result=None):
         return True
     except CalledProcessError as build_error:
         print("Could not check out qmk: %s (returncode:%s)" % (build_error.output, build_error.returncode))
+
+
+def find_firmware_file():
+    """Returns the first firmware file we find.
+
+    Since `os.listdir()` gives us unordered results we can not guarantee which
+    file will be delivered in the case of multiple firmware files. The
+    assumption is that there will only be one.
+    """
+    for file in listdir('.'):
+        if file[-4:] in ('.hex', '.bin'):
+            return file
+
+
+def store_firmware_metadata(result):
+    """Save `result` as a JSON file along side the firmware.
+    """
+    json_data = json.dumps(result)
+    json_obj = BytesIO(json_data.encode('utf-8'))
+    filename = '%s.json' % result['id']
+
+    if STORAGE_ENGINE == 'minio':
+        logging.debug('Uploading %s to minio.', filename)
+        try:
+            minio.put_object(MINIO_BUCKET, '%s/%s' % (result['id'], filename), json_obj, len(json_data), 'application/json')
+        except ResponseError as err:
+            logging.error('Could not upload firmware binary to minio: %s', err)
+            logging.exception(err)
+    else:
+        logging.debug('Copying %s to %s/%s.', filename, FILESYSTEM_PATH, result['id'])
+        if FILESYSTEM_PATH[0] == '/':
+            firmware_path = '%s/%s/' % (FILESYSTEM_PATH, result['id'])
+        else:
+            firmware_path = '../%s/%s/' % (FILESYSTEM_PATH, result['id'])
+        mkdir(firmware_path)
+        copy(result['filename'], firmware_path)
+
+    return True
 
 
 def store_firmware_binary(result):
@@ -119,11 +167,13 @@ def store_firmware_binary(result):
 
     return True
 
+
 def store_firmware_source(result):
     """Called while PWD is the top-level directory to store the firmware source in minio.
     """
-    zip_file = 'qmk_firmware-%(keyboard)s-%(subproject)s-%(keymap)s.zip' % (result)
-    zip_command = ['zip', '-x', 'qmk_firmware/.build/*', '-x', 'qmk_firmware/.git/*', '-r', zip_file, 'qmk_firmware']
+    result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
+    result['source_archive'] = result['source_archive'].replace('/', '-')
+    zip_command = ['zip', '-x', 'qmk_firmware/.build/*', '-x', 'qmk_firmware/.git/*', '-r', result['source_archive'], 'qmk_firmware']
     try:
         logging.debug('Zipping Source: %s', zip_command)
         check_output(zip_command)
@@ -132,27 +182,28 @@ def store_firmware_source(result):
         logging.error(build_error.output)
 
     if STORAGE_ENGINE == 'minio':
-        logging.debug('Uploading %s to minio.', zip_file)
+        logging.debug('Uploading %s to minio.', result['source_archive'])
         try:
-            minio.fput_object(MINIO_BUCKET, '%s/%s' % (result['id'], zip_file), zip_file)
+            minio.fput_object(MINIO_BUCKET, '%s/%s' % (result['id'], result['source_archive']), result['source_archive'])
         except ResponseError as err:
             logging.error('Could not upload firmware source to minio: %s', err)
             logging.exception(err)
         finally:
-            os.remove(zip_file)
+            remove(result['source_archive'])
     else:
-        logging.debug('Copying %s to %s/%s.', zip_file, FILESYSTEM_PATH, result['id'])
+        logging.debug('Copying %s to %s/%s.', result['source_archive'], FILESYSTEM_PATH, result['id'])
         if FILESYSTEM_PATH[0] == '/':
             firmware_path = '%s/%s/' % (FILESYSTEM_PATH, result['id'])
         else:
             firmware_path = '../%s/%s/' % (FILESYSTEM_PATH, result['id'])
         mkdir(firmware_path)
-        copy(zip_file, firmware_path)
-        os.remove(zip_file)
+        copy(result['source_archive'], firmware_path)
+        remove(result['source_archive'])
+
 
 def create_keymap(result, layers):
-    keymap_c = generate_keymap_c(result['keyboard'], layers)
-    keymap_path = 'qmk_firmware/keyboards/%(keyboard)s/keymaps/%(keymap)s' % result
+    keymap_c = generate_keymap_c(result, layers)
+    keymap_path = find_keymap_path(result)
     mkdir(keymap_path)
     with open('%s/keymap.c' % keymap_path, 'w') as keymap_file:
         keymap_file.write(keymap_c)
@@ -168,8 +219,10 @@ def compile_keymap(result):
         open('version.txt', 'w').write(hash.decode('cp437') + '\n')
         result['output'] = check_output(result['command'], stderr=STDOUT, universal_newlines=True)
         result['returncode'] = 0
+        result['firmware_filename'] = find_firmware_file()
 
     except CalledProcessError as build_error:
+        logging.error('Could not build firmware (%s): %s', build_error.cmd, build_error.output)
         result['returncode'] = build_error.returncode
         result['cmd'] = build_error.cmd
         result['output'] = build_error.output
@@ -178,31 +231,41 @@ def compile_keymap(result):
         chdir('..')
 
 
+def find_keymap_path(result):
+    for directory in ['.', '..', '../..', '../../..', '../../../..', '../../../../..']:
+        basepath = normpath('qmk_firmware/keyboards/%s/%s/keymaps' % (result['keyboard'], directory))
+        if exists(basepath):
+            return '/'.join((basepath, result['keymap']))
+
+    logging.error('Could not find keymaps directory!')
+    raise NoSuchKeyboardError('Could not find keymaps directory for: %s' % result['keyboard'])
+
+
 # Public functions
 @job('default', connection=redis)
-def compile_firmware(keyboard_name, subproject, keymap_name, layers):
+def compile_firmware(keyboard, keymap, layout, layers):
     """Compile a firmware.
     """
     checkout_qmk()
     job = get_current_job()
     result = {
         'id': job.id,
-        'keyboard': keyboard_name,
-        'subproject': subproject,
-        'keymap': keymap_name,
-        'command': ['make', '-'.join((keyboard_name, subproject, keymap_name))],
+        'keyboard': keyboard,
+        'layout': layout,
+        'keymap': keymap,
+        'command': ['make', ':'.join((keyboard, keymap))],
         'returncode': -2,
         'output': '',
         'firmware': None,
-        'firmware_filename': '%s_%s_%s.hex' % (keyboard_name, subproject, keymap_name)
+        'firmware_filename': ''
     }
 
     # Sanity checks
-    if not exists('qmk_firmware/keyboards/%s' % keyboard_name):
-        logging.error('Unknown keyboard: %s', keyboard_name)
+    if not exists('qmk_firmware/keyboards/%s' % keyboard):
+        logging.error('Unknown keyboard: %s', keyboard)
         return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
-    if exists('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard_name, keymap_name)):
+    if exists('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap)) or exists('qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap)):
         logging.error('Name collision! This should not happen!')
         return {'returncode': -1, 'command': '', 'output': 'Keymap name collision!', 'firmware': None}
 
@@ -213,5 +276,6 @@ def compile_firmware(keyboard_name, subproject, keymap_name, layers):
     # Store the results
     store_firmware_binary(result)
     store_firmware_source(result)
+    store_firmware_metadata(result)
 
     return result
