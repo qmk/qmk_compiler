@@ -1,7 +1,6 @@
 import json
 import logging
 import minio.helpers
-from hashids import Hashids
 from io import BytesIO
 from minio import Minio
 from minio.error import ResponseError, BucketAlreadyOwnedByYou, BucketAlreadyExists
@@ -39,7 +38,6 @@ __KEYMAP_GOES_HERE__
 """
 
 # Objects we need to instaniate
-hashids = Hashids()
 redis = Redis(REDIS_HOST)
 minio = Minio(MINIO_HOST, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=MINIO_SECURE)
 
