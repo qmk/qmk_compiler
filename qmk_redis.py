@@ -14,7 +14,7 @@ def get(key):
     """
     data = redis.get(key)
     if data:
-        return json.loads(data)
+        return json.loads(data.decode('utf-8'))
 
 
 def set(key, value):
