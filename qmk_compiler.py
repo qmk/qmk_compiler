@@ -1,30 +1,15 @@
 import json
 import logging
-import minio.helpers
+import qmk_storage
 from io import BytesIO
-from minio import Minio
-from minio.error import ResponseError, BucketAlreadyOwnedByYou, BucketAlreadyExists
-from os import chdir, environ, mkdir, listdir, remove
+from os import chdir, mkdir, remove
 from os.path import exists, normpath
-from redis import Redis
+from qmk_commands import checkout_qmk, find_firmware_file
+from qmk_errors import NoSuchKeyboardError
+from qmk_redis import redis
 from rq import get_current_job
 from rq.decorators import job
-from shutil import rmtree, copy
 from subprocess import check_output, CalledProcessError, STDOUT
-
-# Ugly hack- disable minio's multipart upload feature
-minio.helpers.MIN_PART_SIZE = minio.helpers.MAX_MULTIPART_OBJECT_SIZE
-
-# Configuration
-STORAGE_ENGINE = environ.get('STORAGE_ENGINE', 'minio')  # 'minio' or 'filesystem'
-FILESYSTEM_PATH = environ.get('FILESYSTEM_PATH', 'firmwares')
-MINIO_HOST = environ.get('MINIO_HOST', 'lb.minio:9000')
-MINIO_LOCATION = environ.get('MINIO_LOCATION', 'us-east-1')
-MINIO_BUCKET = environ.get('MINIO_BUCKET', 'compiled-qmk-firmware')
-MINIO_ACCESS_KEY = environ.get('MINIO_ACCESS_KEY', '')
-MINIO_SECRET_KEY = environ.get('MINIO_SECRET_KEY', '')
-MINIO_SECURE = False
-REDIS_HOST = environ.get('REDIS_HOST', 'redis.qmk-api')
 
 # The `keymap.c` template to use when a keyboard doesn't have its own
 DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
@@ -36,30 +21,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 __KEYMAP_GOES_HERE__
 };
 """
-
-# Objects we need to instaniate
-redis = Redis(REDIS_HOST)
-minio = Minio(MINIO_HOST, access_key=MINIO_ACCESS_KEY, secret_key=MINIO_SECRET_KEY, secure=MINIO_SECURE)
-
-# Make sure our minio store is properly setup
-try:
-    minio.make_bucket(MINIO_BUCKET, location=MINIO_LOCATION)
-except BucketAlreadyOwnedByYou as err:
-    pass
-except BucketAlreadyExists as err:
-    pass
-
-
-# Exceptions
-class Error(Exception):
-    pass
-
-
-class NoSuchKeyboardError(Error):
-    """Raised when we can't find a keyboard/keymap directory.
-    """
-    def __init__(self, message):
-        self.message = message
 
 
 # Local Helper Functions
@@ -82,37 +43,6 @@ def generate_keymap_c(result, layers):
     return keymap_c
 
 
-def checkout_qmk(result=None):
-    if exists('qmk_firmware'):
-        rmtree('qmk_firmware')
-
-    if not result:
-        result = {}
-
-    command = ['git', 'clone', 'https://github.com/qmk/qmk_firmware.git']
-    try:
-        check_output(command, stderr=STDOUT, universal_newlines=True)
-        chdir('qmk_firmware/')
-        hash = check_output(['git', 'rev-parse', 'HEAD'])
-        open('version.txt', 'w').write(hash.decode('cp437') + '\n')
-        chdir('..')
-        return True
-    except CalledProcessError as build_error:
-        print("Could not check out qmk: %s (returncode:%s)" % (build_error.output, build_error.returncode))
-
-
-def find_firmware_file():
-    """Returns the first firmware file we find.
-
-    Since `os.listdir()` gives us unordered results we can not guarantee which
-    file will be delivered in the case of multiple firmware files. The
-    assumption is that there will only be one.
-    """
-    for file in listdir('.'):
-        if file[-4:] in ('.hex', '.bin'):
-            return file
-
-
 def store_firmware_metadata(job, result):
     """Save `result` as a JSON file along side the firmware.
     """
@@ -129,54 +59,22 @@ def store_firmware_metadata(job, result):
     json_obj = BytesIO(json_data.encode('utf-8'))
     filename = '%s.json' % result['id']
 
-    if STORAGE_ENGINE == 'minio':
-        logging.debug('Uploading %s to minio.', filename)
-        try:
-            minio.put_object(MINIO_BUCKET, '%s/%s' % (result['id'], filename), json_obj, len(json_data), 'application/json')
-        except ResponseError as err:
-            logging.error('Could not upload firmware binary to minio: %s', err)
-            logging.exception(err)
-    else:
-        logging.debug('Copying %s to %s/%s.', filename, FILESYSTEM_PATH, result['id'])
-        if FILESYSTEM_PATH[0] == '/':
-            firmware_path = '%s/%s/' % (FILESYSTEM_PATH, result['id'])
-        else:
-            firmware_path = '../%s/%s/' % (FILESYSTEM_PATH, result['id'])
-        mkdir(firmware_path)
-        copy(result['filename'], firmware_path)
-
-    return True
+    qmk_storage.save_fd(json_obj, filename, len(json_data))
 
 
 def store_firmware_binary(result):
-    """Called while PWD is qmk_firmware to store the firmware hex in minio.
+    """Called while PWD is qmk_firmware to store the firmware hex.
     """
     firmware_file = 'qmk_firmware/%s' % result['firmware_filename']
     if not exists(firmware_file):
         return False
 
     result['firmware'] = open(firmware_file, 'r').read()
-    if STORAGE_ENGINE == 'minio':
-        logging.debug('Uploading %s to minio.', firmware_file)
-        try:
-            minio.fput_object(MINIO_BUCKET, '%s/%s' % (result['id'], result['firmware_filename']), firmware_file)
-        except ResponseError as err:
-            logging.error('Could not upload firmware binary to minio: %s', err)
-            logging.exception(err)
-    else:
-        logging.debug('Copying %s to %s/%s.', firmware_file, FILESYSTEM_PATH, result['id'])
-        if FILESYSTEM_PATH[0] == '/':
-            firmware_path = '%s/%s/' % (FILESYSTEM_PATH, result['id'])
-        else:
-            firmware_path = '../%s/%s/' % (FILESYSTEM_PATH, result['id'])
-        mkdir(firmware_path)
-        copy(result['firmware_filename'], firmware_path)
-
-    return True
+    qmk_storage.save_file(firmware_file, '%(id)s/%(firmware_filename)s' % result, 'text/plain')
 
 
 def store_firmware_source(result):
-    """Called while PWD is the top-level directory to store the firmware source in minio.
+    """Called while PWD is the top-level directory to store the firmware source.
     """
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
@@ -188,24 +86,8 @@ def store_firmware_source(result):
         logging.error('Could not zip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
         logging.error(build_error.output)
 
-    if STORAGE_ENGINE == 'minio':
-        logging.debug('Uploading %s to minio.', result['source_archive'])
-        try:
-            minio.fput_object(MINIO_BUCKET, '%s/%s' % (result['id'], result['source_archive']), result['source_archive'])
-        except ResponseError as err:
-            logging.error('Could not upload firmware source to minio: %s', err)
-            logging.exception(err)
-        finally:
-            remove(result['source_archive'])
-    else:
-        logging.debug('Copying %s to %s/%s.', result['source_archive'], FILESYSTEM_PATH, result['id'])
-        if FILESYSTEM_PATH[0] == '/':
-            firmware_path = '%s/%s/' % (FILESYSTEM_PATH, result['id'])
-        else:
-            firmware_path = '../%s/%s/' % (FILESYSTEM_PATH, result['id'])
-        mkdir(firmware_path)
-        copy(result['source_archive'], firmware_path)
-        remove(result['source_archive'])
+    qmk_storage.save_file(result['source_archive'], '%(id)s/%(source_archive)s' % result, 'text/plain')
+    remove(result['source_archive'])
 
 
 def create_keymap(result, layers):
@@ -281,6 +163,7 @@ def compile_firmware(keyboard, keymap, layout, layers):
     compile_keymap(result)
 
     # Store the results
+    result['firmware'] = open('qmk_firmware/'+result['firmware_filename'], 'r').read()
     store_firmware_binary(result)
     store_firmware_source(result)
     store_firmware_metadata(job, result)
