@@ -142,7 +142,7 @@ def find_layouts(file):
     for keymap in discovered_keymaps:
         # Clean-up the keymap text, extract the macro name, and end up with a list
         # of key entries.
-        keymap = keymap.replace('\\', '').replace(' ', '').replace('#define', '').replace('\t','')
+        keymap = keymap.replace('\\', '').replace(' ', '').replace('\t','').replace('#define', '')
         macro_name, keymap = keymap.split('(', 1)
         keymap = keymap.split(')', 1)[0]
 
@@ -170,23 +170,73 @@ def find_layouts(file):
     return parsed_keymaps
 
 
+@memoize
+def find_info_json(keyboard):
+    """Finds all the info.json files associated with keyboard.
+    """
+    info_json_path = 'qmk_firmware/keyboards/%s%s/info.json'
+    rules_mk_path = 'qmk_firmware/keyboards/%s/rules.mk' % keyboard
+    files = []
+
+    for path in ('/../../../..', '/../../..', '/../..', '/..', ''):
+        if (exists(info_json_path % (keyboard, path))):
+            files.append(info_json_path % (keyboard, path))
+
+    if exists(rules_mk_path):
+        rules = parse_rules_mk(rules_mk_path)
+        if 'DEFAULT_FOLDER' in rules:
+            if (exists(info_json_path % (rules['DEFAULT_FOLDER'], path))):
+                files.append(info_json_path % (rules['DEFAULT_FOLDER'], path))
+
+    return files
+
+
+def merge_info_json(info_fd, keyboard_info):
+    try:
+        info_json = json.load(info_fd)
+    except Exception as e:
+        logging.error("%s is invalid JSON!", info_fd.name)
+        logging.exception(e)
+        return keyboard_info
+
+    if not isinstance(info_json, dict):
+        logging.error("%s is invalid! Should be a JSON dict object.", info_fd.name)
+        return keyboard_info
+
+    for key in ('keyboard_name', 'manufacturer', 'identifier', 'url', 'maintainer', 'processor', 'bootloader', 'width', 'height'):
+        if key in info_json:
+            keyboard_info[key] = info_json[key]
+
+    if 'layouts' in info_json:
+        for layout_name, layout in info_json['layouts'].items():
+            # Only pull in layouts we have a macro for
+            if layout in keyboard_info['layouts']:
+                keyboard_info['layouts'][layout] = info_json['layouts'][layout]
+
+    return keyboard_info
+
+
 @job('default', connection=qmk_redis.redis)
 def update_kb_redis():
     checkout_qmk()
     kb_list = []
     cached_json = {'generated_at': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
     for keyboard in list_keyboards():
-        if (exists('qmk_firmware/keyboards/'+keyboard+'/info.json')):
-            with open('qmk_firmware/keyboards/'+keyboard+'/info.json') as info_file:    
-                keyboard_info = json.load(info_file)
-        else:
-            keyboard_info = {
-                'name': keyboard,
-                'maintainer': 'TBD',
-                'layouts': {}
-            }
-            for layout_name, layout_json in find_all_layouts(keyboard).items():
-                keyboard_info['layouts'][layout_name] = layout_json
+        keyboard_info = {
+            'keyboard_name': keyboard,
+            'keyboard_folder': keyboard,
+            'layouts': {},
+            'maintainer': 'qmk',
+        }
+        for layout_name, layout_json in find_all_layouts(keyboard).items():
+            keyboard_info['layouts'][layout_name] = layout_json
+
+        for info_json_filename in find_info_json(keyboard):
+            # Iterate through all the possible info.json files to build the final keyboard JSON.
+            with open(info_json_filename) as info_file:
+                keyboard_info = merge_info_json(info_file, keyboard_info)
+
+        # Write the keyboard to redis and add it to the master list.
         qmk_redis.set('qmk_api_kb_'+keyboard, keyboard_info)
         kb_list.append(keyboard)
         cached_json['keyboards'][keyboard] = keyboard_info
