@@ -141,7 +141,7 @@ def find_layouts(file):
     for keymap in discovered_keymaps:
         # Clean-up the keymap text, extract the macro name, and end up with a list
         # of key entries.
-        keymap = keymap.replace('\\', '').replace(' ', '').replace('#define', '')
+        keymap = keymap.replace('\\', '').replace(' ', '').replace('#define', '').replace('\t','')
         macro_name, keymap = keymap.split('(', 1)
         keymap = keymap.split(')', 1)[0]
 
@@ -152,7 +152,7 @@ def find_layouts(file):
         # Parse the keymap entries into naive x/y data
         parsed_keymap = []
         default_key_entry['y'] = -1
-        for row in keymap.strip().split('\n'):
+        for row in keymap.strip().split(',\n'):
             default_key_entry['x'] = -1
             default_key_entry['y'] += 1
             parsed_keymap.extend([default_key() for key in row.split(',')])
