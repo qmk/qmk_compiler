@@ -210,8 +210,8 @@ def merge_info_json(info_fd, keyboard_info):
     if 'layouts' in info_json:
         for layout_name, layout in info_json['layouts'].items():
             # Only pull in layouts we have a macro for
-            if layout in keyboard_info['layouts']:
-                keyboard_info['layouts'][layout] = info_json['layouts'][layout]
+            if layout_name in keyboard_info['layouts']:
+                keyboard_info['layouts'][layout_name] = layout
 
     return keyboard_info
 
