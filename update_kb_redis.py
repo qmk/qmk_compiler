@@ -7,6 +7,7 @@ from qmk_commands import checkout_qmk, memoize
 from rq.decorators import job
 from subprocess import check_output, STDOUT
 from time import strftime
+import json
 
 default_key_entry = {'x':-1, 'y':-1, 'w':1}
 
@@ -175,13 +176,17 @@ def update_kb_redis():
     kb_list = []
     cached_json = {'generated_at': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
     for keyboard in list_keyboards():
-        keyboard_info = {
-            'name': keyboard,
-            'maintainer': 'TBD',
-            'layouts': {}
-        }
-        for layout_name, layout_json in find_all_layouts(keyboard).items():
-            keyboard_info['layouts'][layout_name] = layout_json
+        if (exists('qmk_firmware/keyboards/'+keyboard+'/info.json')):
+            with open('qmk_firmware/keyboards/'+keyboard+'/info.json') as info_file:    
+                keyboard_info = json.load(info_file)
+        else:
+            keyboard_info = {
+                'name': keyboard,
+                'maintainer': 'TBD',
+                'layouts': {}
+            }
+            for layout_name, layout_json in find_all_layouts(keyboard).items():
+                keyboard_info['layouts'][layout_name] = layout_json
         qmk_redis.set('qmk_api_kb_'+keyboard, keyboard_info)
         kb_list.append(keyboard)
         cached_json['keyboards'][keyboard] = keyboard_info
