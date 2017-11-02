@@ -219,6 +219,7 @@ def update_kb_redis():
     cached_json = {'generated_at': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
     for keyboard in list_keyboards():
         keyboard_info = {
+            'generated_at': strftime('%Y-%m-%d %H:%M:%S %Z'),
             'keyboard_name': keyboard,
             'keyboard_folder': keyboard,
             'layouts': {},
