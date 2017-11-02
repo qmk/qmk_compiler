@@ -31,22 +31,19 @@ def find_all_layouts(keyboard):
     """Looks for layout macros associated with this keyboard.
     """
     layouts = {}
-    rules_mk = parse_rules_mk('qmk_firmware/keyboards/'+keyboard+'/rules.mk')
+    rules_mk = parse_rules_mk('qmk_firmware/keyboards/%s/rules.mk' % keyboard)
 
-    # First look for `<keyboard>/<keyboard>.h` or `<keyboard>/[folder.../]<folder>/<folder.h>` and prefer those files if they exist.
-    if 'DEFAULT_FOLDER' in rules_mk:
-        include_filename = rules_mk['DEFAULT_FOLDER'].split('/')[-1] + '.h'
-        keyboard_include = '/'.join(('qmk_firmware/keyboards', rules_mk['DEFAULT_FOLDER'], include_filename))
-    else:
-        include_filename = keyboard.split('/')[-1] + '.h'
-        keyboard_include = '/'.join(('qmk_firmware/keyboards/', keyboard, include_filename))
+    # Pull in all keymaps defined in the standard files
+    current_path = 'qmk_firmware/keyboards/'
+    for directory in keyboard.split(current_path):
+        current_path += directory + '/'
+        if exists('%s/%s.h' % (current_path, directory)):
+            layouts.update(find_layouts('%s/%s.h' % (current_path, directory)))
 
-    if exists(keyboard_include):
-        layouts.update(find_layouts(keyboard_include))
-    else:
-        # If we can't guess the correct file we have to search for it. This is error
+    if not layouts:
+        # If we didn't find any layouts above we widen our search. This is error
         # prone which is why we want to encourage people to follow the standard above.
-        logging.warning('Falling back to searching for KEYMAP/LAYOUT macros.')
+        logging.warning('%s: Falling back to searching for KEYMAP/LAYOUT macros.', keyboard)
 
         if 'DEFAULT_FOLDER' in rules_mk:
             layout_dir = 'qmk_firmware/keyboards/' + rules_mk['DEFAULT_FOLDER']
@@ -57,7 +54,6 @@ def find_all_layouts(keyboard):
             if file.endswith('.h'):
                 these_layouts = find_layouts(file)
                 if these_layouts:
-                    keyboard_include = file
                     layouts.update(these_layouts)
                     break
 
@@ -72,7 +68,7 @@ def find_all_layouts(keyboard):
                 supported_layouts.remove(layout_name)
 
         if supported_layouts:
-            logging.warning('*** Missing layout pp macro for %s', supported_layouts)
+            logging.warning('*** %s: Missing layout pp macro for %s', keyboard, supported_layouts)
 
     return layouts
 
