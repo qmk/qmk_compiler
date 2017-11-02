@@ -100,11 +100,16 @@ def parse_rules_mk(file, rules_mk=None):
     return rules_mk
 
 
-def default_key(entry=None):
+def default_key(label=None):
     """Increment x and return a copy of the default_key_entry.
     """
     default_key_entry['x'] += 1
-    return default_key_entry.copy()
+    new_key = default_key_entry.copy()
+
+    if label:
+        new_key['label'] = label
+
+    return new_key
 
 
 @memoize
@@ -151,8 +156,11 @@ def find_layouts(file):
         for row in keymap.strip().split(',\n'):
             default_key_entry['x'] = -1
             default_key_entry['y'] += 1
-            parsed_keymap.extend([default_key() for key in row.split(',')])
-        parsed_keymaps[macro_name] = parsed_keymap
+            parsed_keymap.extend([default_key(key) for key in row.split(',')])
+        parsed_keymaps[macro_name] = {
+            'key_count': len(parsed_keymap),
+            'layout': parsed_keymap
+        }
 
     to_remove = set()
     for alias, text in aliases.items():
@@ -206,7 +214,11 @@ def merge_info_json(info_fd, keyboard_info):
         for layout_name, layout in info_json['layouts'].items():
             # Only pull in layouts we have a macro for
             if layout_name in keyboard_info['layouts']:
-                keyboard_info['layouts'][layout_name] = layout
+                if len(keyboard_info['layouts'][layout_name]['layout']) != len(layout['layout']):
+                    logging.error('%s: Number of elements in info.json does not match! %s != %s',
+                                  keyboard_info['keyboard_folder'], len(keyboard_info['layouts'][layout_name]['layout']), len(layout['layout']))
+                else:
+                    keyboard_info['layouts'][layout_name]['layout'] = layout['layout']
 
     return keyboard_info
 
@@ -229,14 +241,19 @@ def update_kb_redis():
 
         for info_json_filename in find_info_json(keyboard):
             # Iterate through all the possible info.json files to build the final keyboard JSON.
-            with open(info_json_filename) as info_file:
-                keyboard_info = merge_info_json(info_file, keyboard_info)
+            try:
+                with open(info_json_filename) as info_file:
+                    keyboard_info = merge_info_json(info_file, keyboard_info)
+            except Exception as e:
+                logging.error('Error encountered processing %s! %s: %s', keyboard, e.__class__.__name__, e)
+                logging.exception(e)
 
         # Write the keyboard to redis and add it to the master list.
         qmk_redis.set('qmk_api_kb_'+keyboard, keyboard_info)
         kb_list.append(keyboard)
         cached_json['keyboards'][keyboard] = keyboard_info
 
+    # Update the global redis information
     qmk_redis.set('qmk_api_keyboards', kb_list)
     qmk_redis.set('qmk_api_kb_all', cached_json)
     qmk_redis.set('qmk_api_last_updated', strftime('%Y-%m-%d %H:%M:%S %Z'))
