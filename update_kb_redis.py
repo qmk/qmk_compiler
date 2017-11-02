@@ -35,7 +35,7 @@ def find_all_layouts(keyboard):
 
     # Pull in all keymaps defined in the standard files
     current_path = 'qmk_firmware/keyboards/'
-    for directory in keyboard.split(current_path):
+    for directory in keyboard.split('/'):
         current_path += directory + '/'
         if exists('%s/%s.h' % (current_path, directory)):
             layouts.update(find_layouts('%s/%s.h' % (current_path, directory)))
@@ -55,7 +55,6 @@ def find_all_layouts(keyboard):
                 these_layouts = find_layouts(file)
                 if these_layouts:
                     layouts.update(these_layouts)
-                    break
 
     if 'LAYOUTS' in rules_mk:
         # Match these up against the supplied layouts
@@ -216,10 +215,10 @@ def merge_info_json(info_fd, keyboard_info):
 def update_kb_redis():
     checkout_qmk()
     kb_list = []
-    cached_json = {'generated_at': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
+    cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
     for keyboard in list_keyboards():
         keyboard_info = {
-            'generated_at': strftime('%Y-%m-%d %H:%M:%S %Z'),
+            'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'),
             'keyboard_name': keyboard,
             'keyboard_folder': keyboard,
             'layouts': {},
@@ -240,6 +239,7 @@ def update_kb_redis():
 
     qmk_redis.set('qmk_api_keyboards', kb_list)
     qmk_redis.set('qmk_api_kb_all', cached_json)
+    qmk_redis.set('qmk_api_last_updated', strftime('%Y-%m-%d %H:%M:%S %Z'))
 
     return True
 
