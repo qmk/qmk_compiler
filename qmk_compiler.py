@@ -100,7 +100,7 @@ def create_keymap(result, layers):
         json.dump(layers, layers_file)
 
 
-def compile_keymap(result):
+def compile_keymap(job, result):
     logging.debug('Executing build: %s', result['command'])
     chdir('qmk_firmware/')
     try:
@@ -109,6 +109,7 @@ def compile_keymap(result):
         result['output'] = check_output(result['command'], stderr=STDOUT, universal_newlines=True)
         result['returncode'] = 0
         result['firmware_filename'] = find_firmware_file()
+        result['firmware'] = open(result['firmware_filename'], 'r').read()
 
     except CalledProcessError as build_error:
         logging.error('Could not build firmware (%s): %s', build_error.cmd, build_error.output)
@@ -117,6 +118,7 @@ def compile_keymap(result):
         result['output'] = build_error.output
 
     finally:
+        store_firmware_metadata(job, result)
         chdir('..')
 
 
@@ -160,12 +162,10 @@ def compile_firmware(keyboard, keymap, layout, layers):
 
     # Build the keyboard firmware
     create_keymap(result, layers)
-    compile_keymap(result)
+    compile_keymap(job, result)
 
     # Store the results
-    result['firmware'] = open('qmk_firmware/'+result['firmware_filename'], 'r').read()
     store_firmware_binary(result)
     store_firmware_source(result)
-    store_firmware_metadata(job, result)
 
     return result
