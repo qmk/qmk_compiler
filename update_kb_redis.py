@@ -9,6 +9,7 @@ from subprocess import check_output, STDOUT
 from time import strftime
 import json
 
+debug = False
 default_key_entry = {'x':-1, 'y':-1, 'w':1}
 
 
@@ -33,6 +34,10 @@ def find_all_layouts(keyboard):
     layouts = {}
     rules_mk = parse_rules_mk('qmk_firmware/keyboards/%s/rules.mk' % keyboard)
 
+    if 'DEFAULT_FOLDER' in rules_mk:
+        keyboard = rules_mk['DEFAULT_FOLDER']
+        rules_mk = parse_rules_mk('qmk_firmware/keyboards/%s/rules.mk' % keyboard)
+
     # Pull in all keymaps defined in the standard files
     current_path = 'qmk_firmware/keyboards/'
     for directory in keyboard.split('/'):
@@ -44,13 +49,7 @@ def find_all_layouts(keyboard):
         # If we didn't find any layouts above we widen our search. This is error
         # prone which is why we want to encourage people to follow the standard above.
         logging.warning('%s: Falling back to searching for KEYMAP/LAYOUT macros.', keyboard)
-
-        if 'DEFAULT_FOLDER' in rules_mk:
-            layout_dir = 'qmk_firmware/keyboards/' + rules_mk['DEFAULT_FOLDER']
-        else:
-            layout_dir = 'qmk_firmware/keyboards/' + keyboard
-
-        for file in glob(layout_dir + '/*.h'):
+        for file in glob('qmk_firmware/%s/*.h' % keyboard):
             if file.endswith('.h'):
                 these_layouts = find_layouts(file)
                 if these_layouts:
@@ -225,10 +224,16 @@ def merge_info_json(info_fd, keyboard_info):
 
 @job('default', connection=qmk_redis.redis)
 def update_kb_redis():
-    checkout_qmk()
+    if debug:
+        #keyboards_iterator = ['planck']
+        keyboards_iterator = list_keyboards()
+    else:
+        keyboards_iterator = list_keyboards()
+        checkout_qmk()
+
     kb_list = []
     cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
-    for keyboard in list_keyboards():
+    for keyboard in keyboards_iterator:
         keyboard_info = {
             'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'),
             'keyboard_name': keyboard,
@@ -262,4 +267,5 @@ def update_kb_redis():
 
 
 if __name__ == '__main__':
+    debug = True
     update_kb_redis()
