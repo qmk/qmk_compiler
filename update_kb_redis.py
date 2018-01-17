@@ -11,6 +11,7 @@ import json
 
 debug = False
 default_key_entry = {'x':-1, 'y':-1, 'w':1}
+error_log = []
 
 
 @memoize
@@ -48,7 +49,9 @@ def find_all_layouts(keyboard):
     if not layouts:
         # If we didn't find any layouts above we widen our search. This is error
         # prone which is why we want to encourage people to follow the standard above.
-        logging.warning('%s: Falling back to searching for KEYMAP/LAYOUT macros.', keyboard)
+        error_msg = '%s: Falling back to searching for KEYMAP/LAYOUT macros.' % (keyboard)
+        error_log.append('Warning: ' + error_msg)
+        logging.warning(error_msg)
         for file in glob('qmk_firmware/%s/*.h' % keyboard):
             if file.endswith('.h'):
                 these_layouts = find_layouts(file)
@@ -66,7 +69,9 @@ def find_all_layouts(keyboard):
                 supported_layouts.remove(layout_name)
 
         if supported_layouts:
-            logging.warning('*** %s: Missing layout pp macro for %s', keyboard, supported_layouts)
+            error_msg = '*** %s: Missing layout pp macro for %s' % (keyboard, supported_layouts)
+            error_log.append('Warning: ' + error_msg)
+            logging.warning(error_msg)
 
     return layouts
 
@@ -197,12 +202,16 @@ def merge_info_json(info_fd, keyboard_info):
     try:
         info_json = json.load(info_fd)
     except Exception as e:
-        logging.error("%s is invalid JSON!", info_fd.name)
+        error_msg = "%s is invalid JSON: %s" % (info_fd.name, e)
+        error_log.append('Error: ' + error_msg)
+        logging.error(error_msg)
         logging.exception(e)
         return keyboard_info
 
     if not isinstance(info_json, dict):
-        logging.error("%s is invalid! Should be a JSON dict object.", info_fd.name)
+        error_msg = "%s is invalid! Should be a JSON dict object."% (info_fd.name)
+        error_log.append('Error: ' + error_msg)
+        logging.error(error_msg)
         return keyboard_info
 
     for key in ('keyboard_name', 'manufacturer', 'identifier', 'url', 'maintainer', 'processor', 'bootloader', 'width', 'height'):
@@ -214,8 +223,9 @@ def merge_info_json(info_fd, keyboard_info):
             # Only pull in layouts we have a macro for
             if layout_name in keyboard_info['layouts']:
                 if len(keyboard_info['layouts'][layout_name]['layout']) != len(layout['layout']):
-                    logging.error('%s: Number of elements in info.json does not match! %s != %s',
-                                  keyboard_info['keyboard_folder'], len(keyboard_info['layouts'][layout_name]['layout']), len(layout['layout']))
+                    error_msg = '%s: %s: Number of elements in info.json does not match! info.json:%s != %s:%s' % (keyboard_info['keyboard_folder'], layout_name, len(keyboard_info['layouts'][layout_name]['layout']), layout_name, len(layout['layout']))
+                    error_log.append('Error: ' + error_msg)
+                    logging.error(error_msg)
                 else:
                     keyboard_info['layouts'][layout_name]['layout'] = layout['layout']
 
@@ -224,6 +234,8 @@ def merge_info_json(info_fd, keyboard_info):
 
 @job('default', connection=qmk_redis.redis)
 def update_kb_redis():
+    del(error_log[:])  # Empty the error log
+
     if debug:
         #keyboards_iterator = ['planck']
         keyboards_iterator = list_keyboards()
@@ -250,7 +262,9 @@ def update_kb_redis():
                 with open(info_json_filename) as info_file:
                     keyboard_info = merge_info_json(info_file, keyboard_info)
             except Exception as e:
-                logging.error('Error encountered processing %s! %s: %s', keyboard, e.__class__.__name__, e)
+                error_msg = 'Error encountered processing %s! %s: %s' % (keyboard, e.__class__.__name__, e)
+                error_log.append('Error: ' + error_msg)
+                logging.error(error_msg)
                 logging.exception(e)
 
         # Write the keyboard to redis and add it to the master list.
@@ -262,6 +276,7 @@ def update_kb_redis():
     qmk_redis.set('qmk_api_keyboards', kb_list)
     qmk_redis.set('qmk_api_kb_all', cached_json)
     qmk_redis.set('qmk_api_last_updated', strftime('%Y-%m-%d %H:%M:%S %Z'))
+    qmk_redis.set('qmk_api_update_error_log', error_log)
 
     return True
 
