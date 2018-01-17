@@ -228,8 +228,8 @@ def update_kb_redis():
         #keyboards_iterator = ['planck']
         keyboards_iterator = list_keyboards()
     else:
-        keyboards_iterator = list_keyboards()
         checkout_qmk()
+        keyboards_iterator = list_keyboards()
 
     kb_list = []
     cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
