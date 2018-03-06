@@ -25,8 +25,9 @@ __KEYMAP_GOES_HERE__
 
 # Local Helper Functions
 def generate_keymap_c(result, layers):
-    if exists('qmk_firmware/keyboards/%s/templates/keymap.c'):
-        keymap_c = open('keyboards/%s/keymap.c' % result['keyboard']).read()
+    template_name = 'keyboards/%(keyboard)s/templates/keymap.c' % result
+    if exists(template_name):
+        keymap_c = open(template_name).read()
     else:
         keymap_c = DEFAULT_KEYMAP_C
 
