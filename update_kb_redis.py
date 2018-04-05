@@ -1,18 +1,26 @@
-import logging
-import qmk_redis
 from glob import glob
-from os import chdir
+from os import chdir, listdir
 from os.path import exists
-from qmk_commands import checkout_qmk, memoize
-from rq.decorators import job
-from subprocess import check_output, STDOUT
+from subprocess import check_output, STDOUT, run, PIPE
 from time import strftime
 import json
+import logging
+import re
+
+from rq.decorators import job
+
+from qmk_commands import checkout_qmk, memoize, git_hash
+from sparse_list import SparseList
+import qmk_redis
 
 debug = False
 default_key_entry = {'x':-1, 'y':-1, 'w':1}
 error_log = []
 
+# Regexes
+enum_re = re.compile(r'enum[^{]*[^}]*')
+keymap_re = re.compile(r'constuint[0-9]*_t[PROGMEM]*keymaps[^;]*')
+layers_re = re.compile(r'\[[^\]]*]=[0-9A-Z_]*\([^[]*\)')
 
 @memoize
 def list_keyboards():
@@ -116,6 +124,86 @@ def default_key(label=None):
     return new_key
 
 
+def preprocess_source(file):
+    """Run the keymap through `gcc -E` to strip comments and populate #defines
+    """
+    results = run(['gcc', '-E', file], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+    return results.stdout.replace(' ', '').replace('\n', '')
+
+
+def popluate_enums(keymap_text, keymap):
+    """Pull the enums from the file and assign them (hopefully) correct numbers.
+    """
+    replacements = {}
+    for enum in enum_re.findall(keymap_text):
+        enum = enum.split('{')[1]
+        index = 0
+
+        for define in enum.split(','):
+            if '=' in define:
+                define, new_index = define.split('=')
+
+                if new_index == 'SAFE_RANGE':
+                    # We should skip keycode enums
+                    break
+
+                if not new_index.isdigit():
+                    if new_index in replacements:
+                        index = replacements[new_index]
+                else:
+                    index = new_index
+
+                index = int(index)
+
+            replacements[define] = index  # Last one wins in case of conflict
+            index += 1
+
+    # Replace enums with their values
+    for replacement in replacements:
+        keymap = keymap.replace(replacement, str(replacements[replacement]))
+
+    return keymap
+
+
+def extract_layouts(keymap_text, keymap_file):
+    """Returns a list of layouts from keymap_text.
+    """
+    try:
+        keymap = keymap_re.findall(keymap_text)[0]
+    except IndexError:
+        logging.error('Could not extract LAYOUT for %s!', keymap_file)
+        return None
+
+    return keymap
+
+
+def extract_keymap(keymap_file):
+    """Extract the keymap from a file.
+    """
+    layer_index = 0
+    layers = SparseList()
+    keymap_text = preprocess_source(keymap_file)
+    keymap = extract_layouts(keymap_text, keymap_file)
+
+    if not keymap:
+        return layers
+
+    keymap = popluate_enums(keymap_text, keymap)
+
+    # Parse layers into a correctly ordered list
+    for layer in layers_re.findall(keymap):
+        layer_num, _, layer = layer.partition('=')
+        layer = layer.split('(', 1)[1].rsplit(')', 1)[0]
+        layer_num = layer_num.replace('[', '').replace(']', '')
+
+        if not layer_num or not layer_num.isdigit():
+            layer_num = layer_index
+            layer_index += 1
+        layers[int(layer_num)] = layer.split(',')
+
+    return layers
+
+
 @memoize
 def find_layouts(file):
     """Returns list of parsed layout macros found in the supplied file.
@@ -198,6 +286,24 @@ def find_info_json(keyboard):
     return files
 
 
+@memoize
+def find_keymaps(keyboard):
+    """Yields the keymaps for a particular keyboard.
+    """
+    keymaps_path = 'qmk_firmware/keyboards/%s%s/keymaps'
+    keymaps = []
+
+    for path in ('/../../../..', '/../../..', '/../..', '/..', ''):
+        if (exists(keymaps_path % (keyboard, path))):
+            keymaps.append(keymaps_path % (keyboard, path))
+
+    for keymap_folder in keymaps:
+        for keymap in listdir(keymap_folder):
+            keymap_file = '%s/%s/keymap.c' % (keymap_folder, keymap)
+            if exists(keymap_file):
+                yield (keymap, keymap_folder, extract_keymap(keymap_file))
+
+
 def merge_info_json(info_fd, keyboard_info):
     try:
         info_json = json.load(info_fd)
@@ -234,10 +340,18 @@ def merge_info_json(info_fd, keyboard_info):
 
 @job('default', connection=qmk_redis.redis)
 def update_kb_redis():
+    last_update = qmk_redis.get('qmk_api_last_updated')
+    if not debug and isinstance(last_update, dict) and last_update['git_hash'] == git_hash():
+        # We are already up to date
+        logging.warning('update_kb_redis(): Already up to date, skipping...')
+        return False
+
     del(error_log[:])  # Empty the error log
 
     if debug:
         #keyboards_iterator = ['planck']
+        if not exists('qmk_firmware'):
+            checkout_qmk()
         keyboards_iterator = list_keyboards()
     else:
         checkout_qmk()
@@ -247,9 +361,9 @@ def update_kb_redis():
     cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
     for keyboard in keyboards_iterator:
         keyboard_info = {
-            'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'),
             'keyboard_name': keyboard,
             'keyboard_folder': keyboard,
+            'keymaps': [],
             'layouts': {},
             'maintainer': 'qmk',
         }
@@ -267,6 +381,19 @@ def update_kb_redis():
                 logging.error(error_msg)
                 logging.exception(e)
 
+        # Iterate through all the possible keymaps to build keymap jsons.
+        for keymap_name, keymap_folder, keymap in find_keymaps(keyboard):
+            keyboard_info['keymaps'].append(keymap_name)
+            keymap_blob = {
+                'keyboard_name': keyboard,
+                'keymap_name': keymap_name,
+                'keymap_folder': keymap_folder,
+                'layers': keymap,
+            }
+
+            # Write the keymap to redis
+            qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
+
         # Write the keyboard to redis and add it to the master list.
         qmk_redis.set('qmk_api_kb_'+keyboard, keyboard_info)
         kb_list.append(keyboard)
@@ -275,7 +402,7 @@ def update_kb_redis():
     # Update the global redis information
     qmk_redis.set('qmk_api_keyboards', kb_list)
     qmk_redis.set('qmk_api_kb_all', cached_json)
-    qmk_redis.set('qmk_api_last_updated', strftime('%Y-%m-%d %H:%M:%S %Z'))
+    qmk_redis.set('qmk_api_last_updated', {'git_hash': git_hash(), 'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z')})
     qmk_redis.set('qmk_api_update_error_log', error_log)
 
     return True

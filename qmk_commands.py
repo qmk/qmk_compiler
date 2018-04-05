@@ -35,6 +35,15 @@ def find_firmware_file():
             return file
 
 
+def git_hash():
+    """Returns the current commit hash for qmk_firmware.
+    """
+    if not exists('qmk_firmware'):
+        checkout_qmk()
+
+    return open('qmk_firmware/version.txt').read().strip()
+
+
 def memoize(obj):
     """Cache the results from a function call.
     """
