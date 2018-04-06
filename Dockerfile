@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     binutils-arm-none-eabi \
     binutils-avr \
     build-essential \
+    clang \
     dfu-programmer \
     dfu-util \
     gcc \

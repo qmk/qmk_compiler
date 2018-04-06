@@ -125,9 +125,9 @@ def default_key(label=None):
 
 
 def preprocess_source(file):
-    """Run the keymap through `gcc -E` to strip comments and populate #defines
+    """Run the keymap through `clang -E` to strip comments and populate #defines
     """
-    results = run(['gcc', '-E', file], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+    results = run(['clang', '-E', file], stdout=PIPE, stderr=PIPE, universal_newlines=True)
     return results.stdout.replace(' ', '').replace('\n', '')
 
 
