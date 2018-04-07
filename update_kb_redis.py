@@ -41,11 +41,7 @@ def find_all_layouts(keyboard):
     """Looks for layout macros associated with this keyboard.
     """
     layouts = {}
-    rules_mk = parse_rules_mk('qmk_firmware/keyboards/%s/rules.mk' % keyboard)
-
-    if 'DEFAULT_FOLDER' in rules_mk:
-        keyboard = rules_mk['DEFAULT_FOLDER']
-        rules_mk = parse_rules_mk('qmk_firmware/keyboards/%s/rules.mk' % keyboard)
+    rules_mk = parse_rules_mk(keyboard)
 
     # Pull in all keymaps defined in the standard files
     current_path = 'qmk_firmware/keyboards/'
@@ -77,37 +73,99 @@ def find_all_layouts(keyboard):
                 supported_layouts.remove(layout_name)
 
         if supported_layouts:
-            error_msg = '*** %s: Missing layout pp macro for %s' % (keyboard, supported_layouts)
+            error_msg = '%s: Missing layout pp macro for %s' % (keyboard, supported_layouts)
             error_log.append('Warning: ' + error_msg)
             logging.warning(error_msg)
 
     return layouts
 
 
-def parse_rules_mk(file, rules_mk=None):
+def parse_config_h(keyboard):
+    """Parses all the config_h.mk files for a keyboard.
+    """
+    rules_mk = parse_rules_mk(keyboard)
+    config_h = parse_config_h_file('qmk_firmware/keyboards/%s/config.h' % keyboard)
+
+    if 'DEFAULT_FOLDER' in rules_mk:
+        keyboard = rules_mk['DEFAULT_FOLDER']
+        config_h = parse_config_h_file('qmk_firmware/keyboards/%s/%s/config.h' % (keyboard, rules_mk['DEFAULT_FOLDER']), config_h)
+
+    return config_h
+
+
+def parse_config_h_file(file, config_h=None):
+    """Extract defines from a config.h file.
+    """
+    if not config_h:
+        config_h = {}
+
+    if exists(file):
+        for linenum, line in enumerate(open(file).readlines()):
+            line = line.strip()
+            if not line:
+                continue
+
+            line = line.split()
+
+            if line[0] == '#define':
+                if len(line) == 1:
+                    error_msg = '%s: Incomplete #define! On or around line %s' % (file, linenum)
+                    error_log.append(error_msg)
+                    logging.error(error_msg)
+                elif len(line) == 2:
+                    config_h[line[1]] = True
+                else:
+                    config_h[line[1]] = ' '.join(line[2:])
+
+            elif line[0] == '#undef':
+                if len(line) == 2:
+                    if line[1] in config_h:
+                        if config_h[line[1]] is True:
+                            del(config_h[line[1]])
+                        else:
+                            config_h[line[1]] = False
+                else:
+                    error_msg = '%s: Incomplete #undef! On or around line %s' % (file, linenum)
+                    error_log.append(error_msg)
+                    logging.error(error_msg)
+
+    return config_h
+
+
+def parse_rules_mk(keyboard):
+    """Parses all the rules.mk files for a keyboard.
+    """
+    rules_mk = parse_rules_mk_file('qmk_firmware/keyboards/%s/rules.mk' % keyboard)
+
+    if 'DEFAULT_FOLDER' in rules_mk:
+        keyboard = rules_mk['DEFAULT_FOLDER']
+        rules_mk = parse_rules_mk_file('qmk_firmware/keyboards/%s/%s/rules.mk' % (keyboard, rules_mk['DEFAULT_FOLDER']), rules_mk)
+
+    return rules_mk
+
+
+def parse_rules_mk_file(file, rules_mk=None):
     """Turn a rules.mk file into a dictionary.
     """
     if not rules_mk:
         rules_mk = {}
 
-    if not exists(file):
-        return {}
+    if exists(file):
+        for line in open(file).readlines():
+            line = line.strip().split('#')[0]
+            if not line:
+                continue
 
-    for line in open(file).readlines():
-        line = line.strip().split('#')[0]
-        if not line:
-            continue
-
-        if '=' in line:
-            if '+=' in line:
-                key, value = line.split('+=')
-                if key.strip() not in rules_mk:
+            if '=' in line:
+                if '+=' in line:
+                    key, value = line.split('+=')
+                    if key.strip() not in rules_mk:
+                        rules_mk[key.strip()] = value.strip()
+                    else:
+                        rules_mk[key.strip()] += ' ' + value.strip()
+                elif '=' in line:
+                    key, value = line.split('=', 1)
                     rules_mk[key.strip()] = value.strip()
-                else:
-                    rules_mk[key.strip()] += ' ' + value.strip()
-            elif '=' in line:
-                key, value = line.split('=', 1)
-                rules_mk[key.strip()] = value.strip()
 
     return rules_mk
 
@@ -278,10 +336,10 @@ def find_info_json(keyboard):
             files.append(info_json_path % (keyboard, path))
 
     if exists(rules_mk_path):
-        rules = parse_rules_mk(rules_mk_path)
-        if 'DEFAULT_FOLDER' in rules:
-            if (exists(info_json_path % (rules['DEFAULT_FOLDER'], path))):
-                files.append(info_json_path % (rules['DEFAULT_FOLDER'], path))
+        rules_mk = parse_rules_mk_file(rules_mk_path)
+        if 'DEFAULT_FOLDER' in rules_mk:
+            if (exists(info_json_path % (rules_mk['DEFAULT_FOLDER'], path))):
+                files.append(info_json_path % (rules_mk['DEFAULT_FOLDER'], path))
 
     return files
 
@@ -393,6 +451,33 @@ def update_kb_redis():
 
             # Write the keymap to redis
             qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
+
+        # Pull some keyboard information from existing rules.mk and config.h files
+        config_h = parse_config_h(keyboard)
+        rules_mk = parse_rules_mk(keyboard)
+
+        for key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER', 'MANUFACTURER', 'DESCRIPTION'):
+            if key in config_h:
+                if key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER'):
+                    config_h[key].remove('0x')
+                    config_h[key] = config_h[key].upper()
+                keyboard_info[key.lower()] = config_h[key]
+
+        if 'ARMV' in rules_mk:
+            # ARM processors
+            if 'MCU' in rules_mk:
+                keyboard_info['platform'] = rules_mk['MCU_LDSCRIPT']
+            if 'MCU_LDSCRIPT' in rules_mk:
+                keyboard_info['processor'] = rules_mk['MCU_LDSCRIPT']
+        else:
+            # AVR processors
+            if 'ARCH' in rules_mk:
+                keyboard_info['platform'] = rules_mk['ARCH']
+            if 'MCU' in rules_mk:
+                keyboard_info['processor'] = rules_mk['MCU']
+
+        # Build some of the fields from other known data
+        keyboard_info['identifier'] = ':'.join((keyboard_info.get('vendor_id', 'unknown'), keyboard_info.get('product_id', 'unknown'), keyboard_info.get('device_ver', 'unknown')))
 
         # Write the keyboard to redis and add it to the master list.
         qmk_redis.set('qmk_api_kb_'+keyboard, keyboard_info)
