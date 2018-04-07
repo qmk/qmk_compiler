@@ -340,12 +340,6 @@ def merge_info_json(info_fd, keyboard_info):
 
 @job('default', connection=qmk_redis.redis)
 def update_kb_redis():
-    last_update = qmk_redis.get('qmk_api_last_updated')
-    if not debug and isinstance(last_update, dict) and last_update['git_hash'] == git_hash():
-        # We are already up to date
-        logging.warning('update_kb_redis(): Already up to date, skipping...')
-        return False
-
     del(error_log[:])  # Empty the error log
 
     if debug:
@@ -356,6 +350,12 @@ def update_kb_redis():
     else:
         checkout_qmk()
         keyboards_iterator = list_keyboards()
+
+    last_update = qmk_redis.get('qmk_api_last_updated')
+    if not debug and isinstance(last_update, dict) and last_update['git_hash'] == git_hash():
+        # We are already up to date
+        logging.warning('update_kb_redis(): Already up to date, skipping...')
+        return False
 
     kb_list = []
     cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
