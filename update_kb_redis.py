@@ -451,6 +451,11 @@ def update_kb_redis():
 
             # Write the keymap to redis
             qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
+            readme = '%s/%s/readme.md' % (keymap_folder, keymap_name)
+            if exists(readme):
+                qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), open(readme).read())
+            else:
+                qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), '%s does not exist.' % readme)
 
         # Pull some keyboard information from existing rules.mk and config.h files
         config_h = parse_config_h(keyboard)
@@ -459,7 +464,7 @@ def update_kb_redis():
         for key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER', 'MANUFACTURER', 'DESCRIPTION'):
             if key in config_h:
                 if key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER'):
-                    config_h[key].remove('0x')
+                    config_h[key].replace('0x', '')
                     config_h[key] = config_h[key].upper()
                 keyboard_info[key.lower()] = config_h[key]
 
@@ -476,11 +481,17 @@ def update_kb_redis():
             if 'MCU' in rules_mk:
                 keyboard_info['processor'] = rules_mk['MCU']
 
-        # Build some of the fields from other known data
         keyboard_info['identifier'] = ':'.join((keyboard_info.get('vendor_id', 'unknown'), keyboard_info.get('product_id', 'unknown'), keyboard_info.get('device_ver', 'unknown')))
 
+        # Store the keyboard's readme in redis
+        readme = 'qmk_firmware/keyboards/%s/readme.md' % keyboard
+        if exists(readme):
+            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme).read())
+        else:
+            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), '%s does not exist.' % readme)
+
         # Write the keyboard to redis and add it to the master list.
-        qmk_redis.set('qmk_api_kb_'+keyboard, keyboard_info)
+        qmk_redis.set('qmk_api_kb_%s' % (keyboard), keyboard_info)
         kb_list.append(keyboard)
         cached_json['keyboards'][keyboard] = keyboard_info
 
