@@ -1,15 +1,18 @@
 import json
 import logging
-import qmk_storage
 from io import BytesIO
 from os import chdir, mkdir, remove
 from os.path import exists, normpath
+from subprocess import check_output, CalledProcessError, STDOUT
+from traceback import format_exc
+
+from rq import get_current_job
+from rq.decorators import job
+
+import qmk_storage
 from qmk_commands import checkout_qmk, find_firmware_file
 from qmk_errors import NoSuchKeyboardError
 from qmk_redis import redis
-from rq import get_current_job
-from rq.decorators import job
-from subprocess import check_output, CalledProcessError, STDOUT
 
 # The `keymap.c` template to use when a keyboard doesn't have its own
 DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
@@ -58,7 +61,7 @@ def store_firmware_metadata(job, result):
         'result': result
     })
     json_obj = BytesIO(json_data.encode('utf-8'))
-    filename = '%s.json' % result['id']
+    filename = '%s/%s.json' % (result['id'], result['id'])
 
     qmk_storage.save_fd(json_obj, filename, len(json_data))
 
@@ -138,10 +141,7 @@ def find_keymap_path(result):
 def compile_firmware(keyboard, keymap, layout, layers):
     """Compile a firmware.
     """
-    checkout_qmk()
-    job = get_current_job()
     result = {
-        'id': job.id,
         'keyboard': keyboard,
         'layout': layout,
         'keymap': keymap,
@@ -152,21 +152,34 @@ def compile_firmware(keyboard, keymap, layout, layers):
         'firmware_filename': ''
     }
 
-    # Sanity checks
-    if not exists('qmk_firmware/keyboards/%s' % keyboard):
-        logging.error('Unknown keyboard: %s', keyboard)
-        return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
+    try:
+        checkout_qmk()
+        job = get_current_job()
+        result['id'] = job.id
 
-    if exists('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap)) or exists('qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap)):
-        logging.error('Name collision! This should not happen!')
-        return {'returncode': -1, 'command': '', 'output': 'Keymap name collision!', 'firmware': None}
+        # Sanity checks
+        if not exists('qmk_firmware/keyboards/%s' % keyboard):
+            logging.error('Unknown keyboard: %s', keyboard)
+            return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
-    # Build the keyboard firmware
-    create_keymap(result, layers)
-    compile_keymap(job, result)
+        if exists('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap)) or exists('qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap)):
+            logging.error('Name collision! This should not happen!')
+            return {'returncode': -1, 'command': '', 'output': 'Keymap name collision!', 'firmware': None}
 
-    # Store the results
-    store_firmware_binary(result)
-    store_firmware_source(result)
+        # Build the keyboard firmware
+        create_keymap(result, layers)
+        store_firmware_source(result)
+        compile_keymap(job, result)
+        store_firmware_binary(result)
+
+    except Exception as e:
+        result['returncode'] = -3
+        result['exception'] = e.__class__.__name__
+        result['stacktrace'] = format_exc()
+
+        if not result['output']:
+            result['output'] = result['stacktrace']
+
+
 
     return result
