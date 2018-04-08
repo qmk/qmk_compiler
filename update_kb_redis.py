@@ -21,6 +21,9 @@ error_log = []
 enum_re = re.compile(r'enum[^{]*[^}]*')
 keymap_re = re.compile(r'constuint[0-9]*_t[PROGMEM]*keymaps[^;]*')
 layers_re = re.compile(r'\[[^\]]*]=[0-9A-Z_]*\([^[]*\)')
+layout_macro_re = re.compile(r']=(LAYOUT[0-9a-z_]*)\(')
+keymap_macro_re = re.compile(r']=(KEYMAP[0-9a-z_]*)\(')
+
 
 @memoize
 def list_keyboards():
@@ -245,7 +248,12 @@ def extract_keymap(keymap_file):
     keymap = extract_layouts(keymap_text, keymap_file)
 
     if not keymap:
-        return layers
+        return '', layers
+
+    layout_macro = layout_macro_re.findall(keymap_text)
+    if not layout_macro:
+        layout_macro = keymap_macro_re.findall(keymap_text)
+    layout_macro = layout_macro[0] if layout_macro else ''
 
     keymap = popluate_enums(keymap_text, keymap)
 
@@ -260,7 +268,7 @@ def extract_keymap(keymap_file):
             layer_index += 1
         layers[int(layer_num)] = layer.split(',')
 
-    return layers
+    return layout_macro, layers
 
 
 @memoize
@@ -360,7 +368,8 @@ def find_keymaps(keyboard):
         for keymap in listdir(keymap_folder):
             keymap_file = '%s/%s/keymap.c' % (keymap_folder, keymap)
             if exists(keymap_file):
-                yield (keymap, keymap_folder, extract_keymap(keymap_file))
+                layout_macro, layers = extract_keymap(keymap_file)
+                yield (keymap, keymap_folder, layout_macro, layers)
 
 
 def merge_info_json(info_fd, keyboard_info):
@@ -449,13 +458,14 @@ def update_kb_redis():
                 logging.exception(e)
 
         # Iterate through all the possible keymaps to build keymap jsons.
-        for keymap_name, keymap_folder, keymap in find_keymaps(keyboard):
+        for keymap_name, keymap_folder, layout_macro, keymap in find_keymaps(keyboard):
             keyboard_info['keymaps'].append(keymap_name)
             keymap_blob = {
                 'keyboard_name': keyboard,
                 'keymap_name': keymap_name,
                 'keymap_folder': keymap_folder,
                 'layers': keymap,
+                'layout_macro': layout_macro
             }
 
             # Write the keymap to redis
