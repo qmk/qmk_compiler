@@ -42,10 +42,11 @@ def find_all_layouts(keyboard):
     """
     layouts = {}
     rules_mk = parse_rules_mk(keyboard)
+    keyboard_path = rules_mk.get('DEFAULT_FOLDER', keyboard)
 
     # Pull in all keymaps defined in the standard files
     current_path = 'qmk_firmware/keyboards/'
-    for directory in keyboard.split('/'):
+    for directory in keyboard_path.split('/'):
         current_path += directory + '/'
         if exists('%s/%s.h' % (current_path, directory)):
             layouts.update(find_layouts('%s/%s.h' % (current_path, directory)))
@@ -396,6 +397,14 @@ def merge_info_json(info_fd, keyboard_info):
     return keyboard_info
 
 
+def find_readme(directory):
+    """Find the readme.md file in a case insensitive way.
+    """
+    for file in listdir(directory):
+        if file.lower() == 'readme.md':
+            return '/'.join((directory, file))
+    return ''
+
 @job('default', connection=qmk_redis.redis)
 def update_kb_redis():
     del(error_log[:])  # Empty the error log
@@ -484,18 +493,19 @@ def update_kb_redis():
         keyboard_info['identifier'] = ':'.join((keyboard_info.get('vendor_id', 'unknown'), keyboard_info.get('product_id', 'unknown'), keyboard_info.get('device_ver', 'unknown')))
 
         # Store the keyboard's readme in redis
-        readme_filename = ''
-        for file in listdir('qmk_firmware/keyboards/%s' % keyboard):
-            if file.lower() == 'readme.md':
-                readme_filename = file
-                break  # First match wins
+        readme_filename = None
+        readme_path = ''
+        for dir in keyboard.split('/'):
+            readme_path = '/'.join((readme_path, dir))
+            new_name = find_readme('qmk_firmware/keyboards%s' % (readme_path))
+            if new_name:
+                readme_filename = new_name  # Last one wins
 
-        readme = 'qmk_firmware/keyboards/%s/%s' % (keyboard, readme_filename)
-        if readme_filename and exists(readme):
-            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme).read())
+        if readme_filename:
+            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme_filename).read())
             keyboard_info['readme'] = True
         else:
-            error_msg = '%sreadme.md does not exist.' % readme
+            error_msg = '%s does not have a readme.md.' % keyboard
             qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), error_msg)
             error_log.append('Warning: ' + error_msg)
             logging.warning(error_msg)
