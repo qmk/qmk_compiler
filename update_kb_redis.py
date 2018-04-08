@@ -493,8 +493,13 @@ def update_kb_redis():
         readme = 'qmk_firmware/keyboards/%s/%s' % (keyboard, readme_filename)
         if readme_filename and exists(readme):
             qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme).read())
+            keyboard_info['readme'] = True
         else:
-            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), '%sreadme.md does not exist.' % readme)
+            error_msg = '%sreadme.md does not exist.' % readme
+            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), error_msg)
+            error_log.append('Warning: ' + error_msg)
+            logging.warning(error_msg)
+            keyboard_info['readme'] = False
 
         # Write the keyboard to redis and add it to the master list.
         qmk_redis.set('qmk_api_kb_%s' % (keyboard), keyboard_info)
