@@ -34,7 +34,7 @@ s3 = boto3.session.Session().client('s3', region_name=S3_LOCATION, endpoint_url=
 try:
     s3.create_bucket(Bucket=S3_BUCKET)
 except botocore.exceptions.ClientError as e:
-    if e.__class__.__name__ != 'BucketAlreadyOwnedByYou':
+    if e.__class__.__name__ not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
         raise
 
 
