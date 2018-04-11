@@ -493,12 +493,23 @@ def update_kb_redis():
                 keyboard_info['platform'] = rules_mk['MCU_LDSCRIPT']
             if 'MCU_LDSCRIPT' in rules_mk:
                 keyboard_info['processor'] = rules_mk['MCU_LDSCRIPT']
+            if 'BOOTLOADER' in rules_mk:
+                keyboard_info['bootloader'] = rules_mk['BOOTLOADER']
+            if 'bootloader' not in keyboard_info:
+                if 'STM32' in keyboard_info['processor']:
+                    keyboard_info['bootloader'] = 'stm32-dfu'
+                elif keyboard_info.get('manufacturer') == 'Input Club':
+                    keyboard_info['bootloader'] = 'kiibohd-dfu'
         else:
             # AVR processors
             if 'ARCH' in rules_mk:
                 keyboard_info['platform'] = rules_mk['ARCH']
             if 'MCU' in rules_mk:
                 keyboard_info['processor'] = rules_mk['MCU']
+            if 'BOOTLOADER' in rules_mk:
+                keyboard_info['bootloader'] = rules_mk['BOOTLOADER']
+            if 'bootloader' not in keyboard_info:
+                keyboard_info['bootloader'] = 'atmel-dfu'
 
         keyboard_info['identifier'] = ':'.join((keyboard_info.get('vendor_id', 'unknown'), keyboard_info.get('product_id', 'unknown'), keyboard_info.get('device_ver', 'unknown')))
 
