@@ -4,6 +4,7 @@ from io import BytesIO
 from os import chdir, mkdir, remove
 from os.path import exists, normpath
 from subprocess import check_output, CalledProcessError, STDOUT
+from time import time, strftime
 from traceback import format_exc
 
 from rq import get_current_job
@@ -180,6 +181,11 @@ def compile_firmware(keyboard, keymap, layout, layers):
         if not result['output']:
             result['output'] = result['stacktrace']
 
-
-
     return result
+
+
+@job('default', connection=redis)
+def ping():
+    """Write a timestamp to redis to make sure at least one worker is running ok.
+    """
+    return redis.set('qmk_api_last_ping', strftime('"%Y-%m-%d %H:%M:%SZ"'))
