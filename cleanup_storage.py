@@ -9,7 +9,7 @@ from qmk_redis import redis
 from qmk_storage import list_objects, delete
 
 # Configuration
-STORAGE_TIME_HOURS = environ.get('S3_STORAGE_TIME', '48')
+STORAGE_TIME_HOURS = int(environ.get('S3_STORAGE_TIME', 24))
 
 
 @job('default', connection=redis)
