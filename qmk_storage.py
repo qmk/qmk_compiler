@@ -38,6 +38,36 @@ except botocore.exceptions.ClientError as e:
         raise
 
 
+def delete(object, **kwargs):
+    """Delete an object from S3.
+
+    Parameters
+
+    * Bucket (string) -- [REQUIRED]
+    * Key (string) -- [REQUIRED]
+    * MFA (string) -- The concatenation of the authentication device's serial number, a space, and the value that is displayed on your authentication device.
+    * VersionId (string) -- VersionId used to reference a specific version of the object.
+    * RequestPayer (string) -- Confirms that the requester knows that she or he will be charged for the request. Bucket owners need not specify this parameter in their requests. Documentation on downloading objects from requester pays buckets can be found at http://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
+    """
+    return s3.delete_object(Bucket=S3_BUCKET, Key=object, **kwargs)
+
+
+def list_objects(**kwargs):
+    """List the objects in our bucket.
+
+    Parameters
+
+    * Bucket (string) -- [REQUIRED]
+    * Delimiter (string) -- A delimiter is a character you use to group keys.
+    * EncodingType (string) -- Requests Amazon S3 to encode the object keys in the response and specifies the encoding method to use. An object key may contain any Unicode character; however, XML 1.0 parser cannot parse some characters, such as characters with an ASCII value from 0 to 10. For characters that are not supported in XML 1.0, you can add this parameter to request that Amazon S3 encode the keys in the response.
+    * Marker (string) -- Specifies the key to start with when listing objects in a bucket.
+    * MaxKeys (integer) -- Sets the maximum number of keys returned in the response. The response might contain fewer keys but will never contain more.
+    * Prefix (string) -- Limits the response to keys that begin with the specified prefix.
+    * RequestPayer (string) -- Confirms that the requester knows that she or he will be charged for the list objects request. Bucket owners need not specify this parameter in their requests.
+    """
+    return s3.list_objects_v2(Bucket=S3_BUCKET, **kwargs)
+
+
 def save_fd(fd, filename, length, content_type='application/json'):
     """Store the contents of a file-like object in the configured storage engine.
     """
