@@ -488,6 +488,7 @@ def update_kb_redis():
                 keyboard_info[key.lower()] = config_h[key]
 
         if 'ARMV' in rules_mk:
+            keyboard_info['processor_type'] = 'arm'
             # ARM processors
             if 'MCU' in rules_mk:
                 keyboard_info['platform'] = rules_mk['MCU_LDSCRIPT']
@@ -501,6 +502,7 @@ def update_kb_redis():
                 elif keyboard_info.get('manufacturer') == 'Input Club':
                     keyboard_info['bootloader'] = 'kiibohd-dfu'
         else:
+            keyboard_info['processor_type'] = 'avr'
             # AVR processors
             if 'ARCH' in rules_mk:
                 keyboard_info['platform'] = rules_mk['ARCH']
@@ -534,7 +536,8 @@ def update_kb_redis():
 
         # Write the keyboard to redis and add it to the master list.
         qmk_redis.set('qmk_api_kb_%s' % (keyboard), keyboard_info)
-        kb_list.append(keyboard)
+        if keyboard_info['processor_type'] != 'arm':
+            kb_list.append(keyboard)
         cached_json['keyboards'][keyboard] = keyboard_info
 
     # Update the global redis information
