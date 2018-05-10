@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libnewlib-arm-none-eabi \
     python3 \
     python3-pip \
+    python3-setuptools \
     unzip \
     wget \
     zip \
