@@ -1,0 +1,8 @@
+#!/bin/sh
+# Start the redis worker.
+
+if [ x"$REDIS_HOST" = x"" ]; then
+    REDIS_HOST=redis.qmk-api
+fi
+
+exec rq worker -u redis://@${REDIS_HOST}:6379/0
