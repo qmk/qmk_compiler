@@ -551,4 +551,8 @@ def update_kb_redis():
 
 if __name__ == '__main__':
     debug = True
+
+    if not exists('qmk_firmware'):
+        checkout_qmk()
+
     update_kb_redis()

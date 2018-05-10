@@ -1,16 +1,19 @@
 import functools
 import logging
-from os import chdir, listdir
+from os import chdir, listdir, environ
 from os.path import exists
 from shutil import rmtree
 from subprocess import check_output, CalledProcessError, STDOUT
 
 
+GIT_BRANCH = environ.get('GIT_BRANCH', 'master')
+GIT_URL = environ.get('GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
+
 def checkout_qmk():
     if exists('qmk_firmware'):
         rmtree('qmk_firmware')
 
-    command = ['git', 'clone', 'https://github.com/qmk/qmk_firmware.git']
+    command = ['git', 'clone', '--single-branch', '-b', GIT_BRANCH, GIT_URL]
     try:
         check_output(command, stderr=STDOUT, universal_newlines=True)
         chdir('qmk_firmware/')
