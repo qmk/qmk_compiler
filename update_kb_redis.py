@@ -58,7 +58,7 @@ def find_all_layouts(keyboard):
         # If we didn't find any layouts above we widen our search. This is error
         # prone which is why we want to encourage people to follow the standard above.
         error_msg = '%s: Falling back to searching for KEYMAP/LAYOUT macros.' % (keyboard)
-        error_log.append('Warning: ' + error_msg)
+        error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
         logging.warning(error_msg)
         for file in glob('qmk_firmware/%s/*.h' % keyboard):
             if file.endswith('.h'):
@@ -78,7 +78,7 @@ def find_all_layouts(keyboard):
 
         if supported_layouts:
             error_msg = '%s: Missing layout pp macro for %s' % (keyboard, supported_layouts)
-            error_log.append('Warning: ' + error_msg)
+            error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
             logging.warning(error_msg)
 
     return layouts
@@ -114,7 +114,7 @@ def parse_config_h_file(file, config_h=None):
             if line[0] == '#define':
                 if len(line) == 1:
                     error_msg = '%s: Incomplete #define! On or around line %s' % (file, linenum)
-                    error_log.append(error_msg)
+                    error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
                     logging.error(error_msg)
                 elif len(line) == 2:
                     config_h[line[1]] = True
@@ -130,7 +130,7 @@ def parse_config_h_file(file, config_h=None):
                             config_h[line[1]] = False
                 else:
                     error_msg = '%s: Incomplete #undef! On or around line %s' % (file, linenum)
-                    error_log.append(error_msg)
+                    error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
                     logging.error(error_msg)
 
     return config_h
@@ -377,14 +377,14 @@ def merge_info_json(info_fd, keyboard_info):
         info_json = json.load(info_fd)
     except Exception as e:
         error_msg = "%s is invalid JSON: %s" % (info_fd.name, e)
-        error_log.append('Error: ' + error_msg)
+        error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
         logging.error(error_msg)
         logging.exception(e)
         return keyboard_info
 
     if not isinstance(info_json, dict):
         error_msg = "%s is invalid! Should be a JSON dict object."% (info_fd.name)
-        error_log.append('Error: ' + error_msg)
+        error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
         logging.error(error_msg)
         return keyboard_info
 
@@ -398,7 +398,7 @@ def merge_info_json(info_fd, keyboard_info):
             if layout_name in keyboard_info['layouts']:
                 if len(keyboard_info['layouts'][layout_name]['layout']) != len(layout['layout']):
                     error_msg = '%s: %s: Number of elements in info.json does not match! info.json:%s != %s:%s' % (keyboard_info['keyboard_folder'], layout_name, len(keyboard_info['layouts'][layout_name]['layout']), layout_name, len(layout['layout']))
-                    error_log.append('Error: ' + error_msg)
+                    error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
                     logging.error(error_msg)
                 else:
                     keyboard_info['layouts'][layout_name]['layout'] = layout['layout']
@@ -453,7 +453,7 @@ def update_kb_redis():
                     keyboard_info = merge_info_json(info_file, keyboard_info)
             except Exception as e:
                 error_msg = 'Error encountered processing %s! %s: %s' % (keyboard, e.__class__.__name__, e)
-                error_log.append('Error: ' + error_msg)
+                error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
                 logging.error(error_msg)
                 logging.exception(e)
 
@@ -530,7 +530,7 @@ def update_kb_redis():
         else:
             error_msg = '%s does not have a readme.md.' % keyboard
             qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), error_msg)
-            error_log.append('Warning: ' + error_msg)
+            error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
             logging.warning(error_msg)
             keyboard_info['readme'] = False
 
