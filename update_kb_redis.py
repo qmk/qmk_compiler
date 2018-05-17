@@ -243,7 +243,7 @@ def extract_keymap(keymap_file):
     """Extract the keymap from a file.
     """
     layer_index = 0
-    layers = SparseList()
+    layers = SparseList([])
     keymap_text = preprocess_source(keymap_file)
     keymap = extract_layouts(keymap_text, keymap_file)
 
