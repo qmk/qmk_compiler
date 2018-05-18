@@ -10,7 +10,6 @@ import re
 from rq.decorators import job
 
 from qmk_commands import checkout_qmk, memoize, git_hash
-from sparse_list import SparseList
 import qmk_redis
 
 debug = False
@@ -243,13 +242,14 @@ def extract_keymap(keymap_file):
     """Extract the keymap from a file.
     """
     layer_index = 0
-    layers = SparseList([])
+    layers = {}  # Use a dict because we can't predict what order layers will be defined in
     keymap_text = preprocess_source(keymap_file)
     keymap = extract_layouts(keymap_text, keymap_file)
 
     if not keymap:
-        return '', layers
+        return '', []
 
+    # Extract layer definitions from the keymap
     layout_macro = layout_macro_re.findall(keymap_text)
     if not layout_macro:
         layout_macro = keymap_macro_re.findall(keymap_text)
@@ -257,7 +257,7 @@ def extract_keymap(keymap_file):
 
     keymap = popluate_enums(keymap_text, keymap)
 
-    # Parse layers into a correctly ordered list
+    # Parse layers into a dict keyed by layer number.
     for layer in layers_re.findall(keymap):
         layer_num, _, layer = layer.partition('=')
         layer = layer.split('(', 1)[1].rsplit(')', 1)[0]
@@ -268,7 +268,15 @@ def extract_keymap(keymap_file):
             layer_index += 1
         layers[int(layer_num)] = layer.split(',')
 
-    return layout_macro, layers
+
+    # Turn the layers dict into a properly ordered list.
+    layer_list = []
+    if layers:
+        max_int = sorted(layers.keys())[-1]
+        for i in range(max_int+1):
+            layer_list.append(layers.get(i))
+
+    return layout_macro, layer_list
 
 
 @memoize
