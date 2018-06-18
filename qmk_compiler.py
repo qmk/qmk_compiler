@@ -146,7 +146,7 @@ def compile_firmware(keyboard, keymap, layout, layers):
         'keyboard': keyboard,
         'layout': layout,
         'keymap': keymap,
-        'command': ['make', ':'.join((keyboard, keymap))],
+        'command': ['make', 'COLOR=false', ':'.join((keyboard, keymap))],
         'returncode': -2,
         'output': '',
         'firmware': None,
