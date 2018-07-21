@@ -7,6 +7,7 @@ import json
 import logging
 import re
 
+from bs4 import UnicodeDammit
 from rq.decorators import job
 
 from qmk_commands import checkout_qmk, memoize, git_hash
@@ -480,9 +481,13 @@ def update_kb_redis():
             qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
             readme = '%s/%s/readme.md' % (keymap_folder, keymap_name)
             if exists(readme):
-                qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), open(readme).read())
+                with open(readme, 'rb') as readme_fd:
+                    readme_text = readme_fd.read()
+                readme_text = UnicodeDammit(readme_text)
+                readme_text = readme_text.unicode_markup
             else:
-                qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), '%s does not exist.' % readme)
+                readme_text = '%s does not exist.' % readme
+            qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), readme_text)
 
         # Pull some keyboard information from existing rules.mk and config.h files
         config_h = parse_config_h(keyboard)
