@@ -5,6 +5,8 @@ from shutil import copyfile, copyfileobj
 
 import boto3
 import botocore.client
+import botocore.exceptions as exceptions
+
 
 # Configuration
 STORAGE_ENGINE = environ.get('STORAGE_ENGINE', 's3')  # 's3' or 'filesystem'
@@ -127,7 +129,7 @@ def get_fd(filename):
     """
     if STORAGE_ENGINE == 's3':
         s3_object = s3.get_object(Bucket=S3_BUCKET, Key=filename)
-        return s3_object['Body']
+        return s3_object['Body']._raw_stream.data  # I wish boto3 would provide a public interface for this...
 
     else:
         file_path = '/'.join((FILESYSTEM_PATH, filename))

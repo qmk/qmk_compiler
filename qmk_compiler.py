@@ -1,19 +1,20 @@
 import json
 import logging
 from io import BytesIO
-from os import chdir, mkdir, remove
+from os import chdir, mkdir
 from os.path import exists, normpath
 from subprocess import check_output, CalledProcessError, STDOUT
-from time import time, strftime
+from time import strftime
 from traceback import format_exc
 
 from rq import get_current_job
 from rq.decorators import job
 
 import qmk_storage
-from qmk_commands import checkout_qmk, find_firmware_file
+from qmk_commands import checkout_qmk, find_firmware_file, store_qmk_source
 from qmk_errors import NoSuchKeyboardError
 from qmk_redis import redis
+
 
 # The `keymap.c` template to use when a keyboard doesn't have its own
 DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
@@ -83,16 +84,7 @@ def store_firmware_source(result):
     """
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
-    zip_command = ['zip', '-x', 'qmk_firmware/.build/*', '-x', 'qmk_firmware/.git/*', '-r', result['source_archive'], 'qmk_firmware']
-    try:
-        logging.debug('Zipping Source: %s', zip_command)
-        check_output(zip_command)
-    except CalledProcessError as build_error:
-        logging.error('Could not zip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
-        logging.error(build_error.output)
-
-    qmk_storage.save_file(result['source_archive'], '%(id)s/%(source_archive)s' % result, 'text/plain')
-    remove(result['source_archive'])
+    store_qmk_source(result['source_archive'], '%(id)s/%(source_archive)s' % result)
 
 
 def create_keymap(result, layers):
