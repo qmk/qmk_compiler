@@ -378,7 +378,9 @@ def find_keymaps(keyboard):
             keymap_file = '%s/%s/keymap.c' % (keymap_folder, keymap)
             if exists(keymap_file):
                 layout_macro, layers = extract_keymap(keymap_file)
-                yield (keymap, keymap_folder, layout_macro, layers)
+                # Skip any layout macro that ends with '_kc', they will not compile
+                if not layout_macro.startswith('LAYOUT_kc'):
+                    yield (keymap, keymap_folder, layout_macro, layers)
 
 
 def merge_info_json(info_fd, keyboard_info):
@@ -423,6 +425,7 @@ def find_readme(directory):
             return '/'.join((directory, file))
     return ''
 
+
 @job('default', connection=qmk_redis.redis)
 def update_kb_redis():
     del(error_log[:])  # Empty the error log
@@ -453,7 +456,8 @@ def update_kb_redis():
             'maintainer': 'qmk',
         }
         for layout_name, layout_json in find_all_layouts(keyboard).items():
-            keyboard_info['layouts'][layout_name] = layout_json
+            if not layout_name.startswith('LAYOUT_kc'):
+                keyboard_info['layouts'][layout_name] = layout_json
 
         for info_json_filename in find_info_json(keyboard):
             # Iterate through all the possible info.json files to build the final keyboard JSON.
