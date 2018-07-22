@@ -69,10 +69,9 @@ def fetch_qmk_source():
 def store_qmk_source(zipfile_name, storage_path):
     """Store a copy of the QMK source in storage.
     """
-    if exists('qmk_firmware.zip'):
-        remove('qmk_firmware.zip')
+    if exists(zipfile_name):
+        remove(zipfile_name)
 
-    print('***', listdir())
     zip_command = ['zip', '-x', 'qmk_firmware/.build/*', '-x', 'qmk_firmware/.git/*', '-r', zipfile_name, 'qmk_firmware']
     try:
         logging.debug('Zipping Source: %s', zip_command)
@@ -80,6 +79,7 @@ def store_qmk_source(zipfile_name, storage_path):
     except CalledProcessError as build_error:
         logging.error('Could not zip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
         logging.error(build_error.output)
+        remove(zipfile_name)
 
     qmk_storage.save_file(zipfile_name, storage_path, 'application/zip')
     remove(zipfile_name)
