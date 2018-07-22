@@ -52,17 +52,20 @@ def fetch_qmk_source():
         logging.warning(e)
         return False
 
-    with open('qmk_firmware.zip', 'wb') as zipfile:
+    with open('qmk_firmware.zip', 'xb') as zipfile:
         zipfile.write(zipfile_fd)
-        zip_command = ['unzip', 'qmk_firmware.zip']
-        try:
-            logging.debug('Unzipping QMK Source: %s', zip_command)
-            check_output(zip_command)
-            remove('qmk_firmware.zip')
-            return True
-        except CalledProcessError as build_error:
-            logging.error('Could not unzip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
-            logging.error(build_error.output)
+
+    zip_command = ['unzip', 'qmk_firmware.zip']
+    try:
+        logging.debug('Unzipping QMK Source: %s', zip_command)
+        check_output(zip_command)
+        remove('qmk_firmware.zip')
+        return True
+
+    except CalledProcessError as build_error:
+        logging.error('Could not unzip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
+        logging.error(build_error.output)
+        return False
 
 
 def store_qmk_source(zipfile_name, storage_path):
@@ -79,9 +82,11 @@ def store_qmk_source(zipfile_name, storage_path):
         logging.error('Could not zip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
         logging.error(build_error.output)
         remove(zipfile_name)
+        return False
 
     qmk_storage.save_file(zipfile_name, storage_path, 'application/zip')
     remove(zipfile_name)
+    return True
 
 
 def find_firmware_file():
