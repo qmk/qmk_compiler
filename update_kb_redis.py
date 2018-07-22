@@ -1,5 +1,7 @@
 from glob import glob
-from os import chdir, listdir
+from os import chdir, listdir, remove
+from shutil import rmtree
+
 from os.path import exists
 from subprocess import check_output, STDOUT, run, PIPE
 from time import strftime
@@ -10,6 +12,7 @@ import re
 from bs4 import UnicodeDammit
 from rq.decorators import job
 
+import qmk_storage
 from qmk_commands import checkout_qmk, memoize, git_hash
 import qmk_redis
 
@@ -428,26 +431,29 @@ def find_readme(directory):
 
 @job('default', connection=qmk_redis.redis)
 def update_kb_redis():
-    del(error_log[:])  # Empty the error log
+    """Called when updates happen to QMK Firmware. Responsible for updating the cached source code and API data.
+    """
+    # Check to see if we need to update
+    if exists('qmk_firmware'):
+        last_update = qmk_redis.get('qmk_api_last_updated')
+        if not debug and isinstance(last_update, dict) and last_update['git_hash'] == git_hash():
+            # We are already up to date
+            logging.warning('update_kb_redis(): Already up to date, skipping...')
+            return False
 
-    if debug:
-        #keyboards_iterator = ['planck']
-        if not exists('qmk_firmware'):
-            checkout_qmk()
-        keyboards_iterator = list_keyboards()
-    else:
-        checkout_qmk()
-        keyboards_iterator = list_keyboards()
+    # Clean up the environment and fetch the latest source
+    del(error_log[:])
+    if exists('qmk_firmware'):
+        rmtree('qmk_firmware')
+    if exists('qmk_firmware.zip'):
+        remove('qmk_firmware.zip')
+    qmk_storage.delete('cache/qmk_firmware.zip')
+    checkout_qmk()
 
-    last_update = qmk_redis.get('qmk_api_last_updated')
-    if not debug and isinstance(last_update, dict) and last_update['git_hash'] == git_hash():
-        # We are already up to date
-        logging.warning('update_kb_redis(): Already up to date, skipping...')
-        return False
-
+    # Update redis with the latest data
     kb_list = []
     cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
-    for keyboard in keyboards_iterator:
+    for keyboard in list_keyboards():
         keyboard_info = {
             'keyboard_name': keyboard,
             'keyboard_folder': keyboard,
@@ -568,8 +574,5 @@ def update_kb_redis():
 
 if __name__ == '__main__':
     debug = True
-
-    if not exists('qmk_firmware'):
-        checkout_qmk()
 
     update_kb_redis()
