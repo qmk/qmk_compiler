@@ -45,25 +45,24 @@ def fetch_qmk_source():
     if exists('qmk_firmware.zip'):
         remove('qmk_firmware.zip')
 
-    with open('qmk_firmware.zip', 'wb') as zipfile:
-        try:
-            zipfile.write(qmk_storage.get_fd('cache/qmk_firmware.zip'))
-            zip_command = ['unzip', 'qmk_firmware.zip']
-            try:
-                logging.debug('Unzipping QMK Source: %s', zip_command)
-                check_output(zip_command)
-                remove('qmk_firmware.zip')
-                return True
-            except CalledProcessError as build_error:
-                logging.error('Could not unzip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
-                logging.error(build_error.output)
-        except qmk_storage.exceptions.ClientError as e:
-            logging.warning('Could not fetch zip from S3: %s', e.__class__.__name__)
-            logging.warning(e)
+    try:
+        zipfile_fd = qmk_storage.get_fd('cache/qmk_firmware.zip')
+    except qmk_storage.exceptions.ClientError as e:
+        logging.warning('Could not fetch zip from S3: %s', e.__class__.__name__)
+        logging.warning(e)
+        return False
 
-        if not exists('qmk_firmware'):
-            logging.warning('`qmk_firmware` does not exist, cloning from git.')
-            git_clone_qmk()
+    with open('qmk_firmware.zip', 'wb') as zipfile:
+        zipfile.write(zipfile_fd)
+        zip_command = ['unzip', 'qmk_firmware.zip']
+        try:
+            logging.debug('Unzipping QMK Source: %s', zip_command)
+            check_output(zip_command)
+            remove('qmk_firmware.zip')
+            return True
+        except CalledProcessError as build_error:
+            logging.error('Could not unzip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
+            logging.error(build_error.output)
 
 
 def store_qmk_source(zipfile_name, storage_path):
