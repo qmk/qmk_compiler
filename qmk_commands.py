@@ -46,14 +46,14 @@ def fetch_qmk_source():
         remove('qmk_firmware.zip')
 
     try:
-        zipfile_fd = qmk_storage.get_fd('cache/qmk_firmware.zip')
+        zipfile_data = qmk_storage.get('cache/qmk_firmware.zip')
     except qmk_storage.exceptions.ClientError as e:
         logging.warning('Could not fetch zip from S3: %s', e.__class__.__name__)
         logging.warning(e)
         return False
 
     with open('qmk_firmware.zip', 'xb') as zipfile:
-        zipfile.write(zipfile_fd)
+        zipfile.write(zipfile_data)
 
     zip_command = ['unzip', 'qmk_firmware.zip']
     try:

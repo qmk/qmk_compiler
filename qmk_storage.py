@@ -129,7 +129,7 @@ def get_fd(filename):
     """
     if STORAGE_ENGINE == 's3':
         s3_object = s3.get_object(Bucket=S3_BUCKET, Key=filename)
-        return s3_object['Body']._raw_stream.data  # I wish boto3 would provide a public interface for this...
+        return s3_object['Body']
 
     else:
         file_path = '/'.join((FILESYSTEM_PATH, filename))
