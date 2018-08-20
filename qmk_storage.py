@@ -32,12 +32,13 @@ __KEYMAP_GOES_HERE__
 # Objects we need to instaniate
 s3 = boto3.session.Session().client('s3', region_name=S3_LOCATION, endpoint_url=S3_HOST, aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY)
 
-# Make sure our s3 store is properly setup
+# Check to see if S3 is working, and if not print an error in the log.
 try:
     s3.create_bucket(Bucket=S3_BUCKET)
 except botocore.exceptions.ClientError as e:
     if e.__class__.__name__ not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
-        raise
+        logging.error('Could not contact S3! Storage related functionality will not work!')
+        logging.exception()
 
 
 def delete(object, **kwargs):
