@@ -201,6 +201,9 @@ def popluate_enums(keymap_text, keymap):
     """
     replacements = {}
     for enum in enum_re.findall(keymap_text):
+        if '{' not in enum:
+            logging.error('Matched enum without a curlybrace? %s', enum)
+            continue
         enum = enum.split('{')[1]
         index = 0
 
