@@ -38,7 +38,7 @@ try:
 except Exception as e:
     if e.__class__.__name__ not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
         logging.error('Could not contact S3! Storage related functionality will not work!')
-        logging.exception(e)
+        #logging.exception(e)
 
 
 def delete(object, **kwargs):
