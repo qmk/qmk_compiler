@@ -35,10 +35,10 @@ s3 = boto3.session.Session().client('s3', region_name=S3_LOCATION, endpoint_url=
 # Check to see if S3 is working, and if not print an error in the log.
 try:
     s3.create_bucket(Bucket=S3_BUCKET)
-except botocore.exceptions.ClientError as e:
+except Exception as e:
     if e.__class__.__name__ not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
         logging.error('Could not contact S3! Storage related functionality will not work!')
-        logging.exception()
+        logging.exception(e)
 
 
 def delete(object, **kwargs):
