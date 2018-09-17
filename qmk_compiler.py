@@ -1,8 +1,7 @@
 import json
 import logging
 from io import BytesIO
-from os import chdir, mkdir
-from os.path import exists, normpath
+from os import chdir, mkdir, environ, path
 from subprocess import check_output, CalledProcessError, STDOUT
 from time import strftime
 from traceback import format_exc
@@ -16,6 +15,7 @@ from qmk_errors import NoSuchKeyboardError
 from qmk_redis import redis
 
 
+API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
 # The `keymap.c` template to use when a keyboard doesn't have its own
 DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
 
@@ -31,7 +31,7 @@ __KEYMAP_GOES_HERE__
 # Local Helper Functions
 def generate_keymap_c(result, layers):
     template_name = 'keyboards/%(keyboard)s/templates/keymap.c' % result
-    if exists(template_name):
+    if path.exists(template_name):
         keymap_c = open(template_name).read()
     else:
         keymap_c = DEFAULT_KEYMAP_C
@@ -72,11 +72,14 @@ def store_firmware_binary(result):
     """Called while PWD is qmk_firmware to store the firmware hex.
     """
     firmware_file = 'qmk_firmware/%s' % result['firmware_filename']
-    if not exists(firmware_file):
+    firmware_storage_path = '%(id)s/%(firmware_filename)s' % result
+    mime_type = 'text/plain' if result['firmware_filename'].endswith('.hex') else 'application/octet-stream'
+
+    if not path.exists(firmware_file):
         return False
 
-    result['firmware'] = open(firmware_file, 'r').read()
-    qmk_storage.save_file(firmware_file, '%(id)s/%(firmware_filename)s' % result, 'text/plain')
+    qmk_storage.save_file(firmware_file, firmware_storage_path, mime_type)
+    result['firmware_binary_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'download')]
 
 
 def store_firmware_source(result):
@@ -85,6 +88,7 @@ def store_firmware_source(result):
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
     store_qmk_source(result['source_archive'], '%(id)s/%(source_archive)s' % result)
+    result['firmware_source_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'source')]
 
 
 def create_keymap(result, layers):
@@ -106,7 +110,9 @@ def compile_keymap(job, result):
         result['output'] = check_output(result['command'], stderr=STDOUT, universal_newlines=True)
         result['returncode'] = 0
         result['firmware_filename'] = find_firmware_file()
-        result['firmware'] = open(result['firmware_filename'], 'r').read()
+        result['firmware'] = 'binary file'
+        if result['firmware_filename'].endswith('.hex'):
+            result['firmware'] = open(result['firmware_filename'], 'r').read()  # FIXME: Remove this for v2
 
     except CalledProcessError as build_error:
         logging.error('Could not build firmware (%s): %s', build_error.cmd, build_error.output)
@@ -121,8 +127,8 @@ def compile_keymap(job, result):
 
 def find_keymap_path(result):
     for directory in ['.', '..', '../..', '../../..', '../../../..', '../../../../..']:
-        basepath = normpath('qmk_firmware/keyboards/%s/%s/keymaps' % (result['keyboard'], directory))
-        if exists(basepath):
+        basepath = path.normpath('qmk_firmware/keyboards/%s/%s/keymaps' % (result['keyboard'], directory))
+        if path.exists(basepath):
             return '/'.join((basepath, result['keymap']))
 
     logging.error('Could not find keymaps directory!')
@@ -151,11 +157,11 @@ def compile_firmware(keyboard, keymap, layout, layers):
         result['id'] = job.id
 
         # Sanity checks
-        if not exists('qmk_firmware/keyboards/%s' % keyboard):
+        if not path.exists('qmk_firmware/keyboards/%s' % keyboard):
             logging.error('Unknown keyboard: %s', keyboard)
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
-        if exists('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap)) or exists('qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap)):
+        if path.exists('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap)) or path.exists('qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap)):
             logging.error('Name collision! This should not happen!')
             return {'returncode': -1, 'command': '', 'output': 'Keymap name collision!', 'firmware': None}
 
