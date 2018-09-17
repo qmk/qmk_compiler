@@ -89,14 +89,14 @@ def store_qmk_source(zipfile_name, storage_path):
     return True
 
 
-def find_firmware_file():
+def find_firmware_file(dir='.'):
     """Returns the first firmware file we find.
 
     Since `os.listdir()` gives us unordered results we can not guarantee which
     file will be delivered in the case of multiple firmware files. The
     assumption is that there will only be one.
     """
-    for file in listdir('.'):
+    for file in listdir(dir):
         if file[-4:] in ('.hex', '.bin'):
             return file
 
