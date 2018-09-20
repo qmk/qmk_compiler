@@ -390,6 +390,8 @@ def find_keymaps(keyboard):
 
 
 def merge_info_json(info_fd, keyboard_info):
+    """Merge the parsed keyboard_info data with the parsed info.json and return the full JSON that will ultimately be stored in redis.
+    """
     try:
         info_json = json.load(info_fd)
     except Exception as e:
@@ -410,15 +412,15 @@ def merge_info_json(info_fd, keyboard_info):
             keyboard_info[key] = info_json[key]
 
     if 'layouts' in info_json:
-        for layout_name, layout in info_json['layouts'].items():
+        for layout_name, json_layout in info_json['layouts'].items():
             # Only pull in layouts we have a macro for
             if layout_name in keyboard_info['layouts']:
-                if len(keyboard_info['layouts'][layout_name]['layout']) != len(layout['layout']):
-                    error_msg = '%s: %s: Number of elements in info.json does not match! info.json:%s != %s:%s' % (keyboard_info['keyboard_folder'], layout_name, len(keyboard_info['layouts'][layout_name]['layout']), layout_name, len(layout['layout']))
+                if len(keyboard_info['layouts'][layout_name]['layout']) != len(json_layout['layout']):
+                    error_msg = '%s: %s: Number of elements in info.json does not match! info.json:%s != %s:%s' % (keyboard_info['keyboard_folder'], layout_name, len(json_layout['layout']), layout_name, len(keyboard_info['layouts'][layout_name]['layout']))
                     error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
                     logging.error(error_msg)
                 else:
-                    keyboard_info['layouts'][layout_name]['layout'] = layout['layout']
+                    keyboard_info['layouts'][layout_name]['layout'] = json_layout['layout']
 
     return keyboard_info
 
