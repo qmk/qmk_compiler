@@ -1,7 +1,7 @@
 import json
 import logging
 from io import BytesIO
-from os import chdir, mkdir, environ, path
+from os import chdir, mkdir, environ, path, getcwd
 from subprocess import check_output, CalledProcessError, STDOUT
 from time import strftime
 from traceback import format_exc
@@ -9,8 +9,9 @@ from traceback import format_exc
 from rq import get_current_job
 from rq.decorators import job
 
+import qmk_redis
 import qmk_storage
-from qmk_commands import checkout_qmk, find_firmware_file, store_qmk_source
+from qmk_commands import checkout_qmk, find_firmware_file, store_source, checkout_chibios
 from qmk_errors import NoSuchKeyboardError
 from qmk_redis import redis
 
@@ -87,7 +88,7 @@ def store_firmware_source(result):
     """
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
-    store_qmk_source(result['source_archive'], '%(id)s/%(source_archive)s' % result)
+    store_source()
     result['firmware_source_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'source')]
 
 
@@ -128,6 +129,7 @@ def compile_keymap(job, result):
 def find_keymap_path(result):
     for directory in ['.', '..', '../..', '../../..', '../../../..', '../../../../..']:
         basepath = path.normpath('qmk_firmware/keyboards/%s/%s/keymaps' % (result['keyboard'], directory))
+        print('Checking', basepath, 'from', getcwd())
         if path.exists(basepath):
             return '/'.join((basepath, result['keymap']))
 
@@ -152,18 +154,26 @@ def compile_firmware(keyboard, keymap, layout, layers):
     }
 
     try:
-        checkout_qmk()
         job = get_current_job()
         result['id'] = job.id
+        checkout_qmk()
 
         # Sanity checks
-        if not path.exists('qmk_firmware/keyboards/%s' % keyboard):
+        if not path.exists('qmk_firmware/keyboards/' + keyboard):
             logging.error('Unknown keyboard: %s', keyboard)
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
-        if path.exists('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap)) or path.exists('qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap)):
-            logging.error('Name collision! This should not happen!')
-            return {'returncode': -1, 'command': '', 'output': 'Keymap name collision!', 'firmware': None}
+        for pathname in ('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap),
+                         'qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap)):
+            if path.exists(pathname):
+                logging.error('Name collision! %s already exists! This should not happen!', pathname)
+                return {'returncode': -1, 'command': '', 'output': 'Keymap name collision! %s already exists!' % (pathname), 'firmware': None}
+
+        # If this keyboard needs chibios check it out
+        kb_data = qmk_redis.get('qmk_api_kb_' + keyboard)
+
+        if kb_data['processor_type'] == 'arm':
+            checkout_chibios()
 
         # Build the keyboard firmware
         create_keymap(result, layers)
