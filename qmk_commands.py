@@ -8,12 +8,16 @@ from subprocess import check_output, CalledProcessError, STDOUT
 import qmk_storage
 
 
-GIT_BRANCH = os.environ.get('GIT_BRANCH', 'master')
+CHIBIOS_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'qmk')
 CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
+CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'qmk')
 CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
+QMK_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'master')
 QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
 ZIP_EXCLUDES = {
-    'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*')
+    'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*'),
+    'chibios': ('chibios/.git/*'),
+    'chibios_contrib': ('chibios_contrib/.git/*')
 }
 
 
@@ -23,29 +27,29 @@ def checkout_qmk():
     if exists('qmk_firmware'):
         rmtree('qmk_firmware')
 
-    if not fetch_source():
-        git_clone(QMK_GIT_URL, GIT_BRANCH)
+    if not fetch_source(repo_name(QMK_GIT_URL)):
+        git_clone(QMK_GIT_URL, QMK_GIT_BRANCH)
 
 
 def checkout_chibios():
     """Do whatever is needed to get the latest version of ChibiOS and ChibiOS-Contrib.
     """
+    chibios = ('chibios', CHIBIOS_GIT_URL, CHIBIOS_GIT_BRANCH)
+    chibios_contrib = ('chibios_contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
+
     os.chdir('qmk_firmware/lib')
 
-    for submodule in ('chibios', 'chibios-contrib'):
-        try:
-            check_output(['git', 'submodule', 'sync', submodule])
-            check_output(['git', 'submodule', 'update', '--init', submodule])
-        except CalledProcessError as git_error:
-            logging.error('Could not fetch submodule %s!', submodule)
-            logging.exception(git_error)
-            logging.error(git_error.output)
-            raise
+    for submodule, git_url, git_branch in chibios, chibios_contrib:
+        if exists(submodule):
+            rmtree(submodule)
+
+        if not fetch_source(submodule):
+            git_clone(git_url, git_branch)
 
     os.chdir('../..')
 
 
-def git_clone(git_url=QMK_GIT_URL, git_branch=GIT_BRANCH):
+def git_clone(git_url=QMK_GIT_URL, git_branch=QMK_GIT_BRANCH):
     """Clone QMK from the github source.
     """
     repo = repo_name(git_url)
@@ -56,6 +60,7 @@ def git_clone(git_url=QMK_GIT_URL, git_branch=GIT_BRANCH):
         os.chdir(repo)
         hash = check_output(['git', 'rev-parse', 'HEAD'])
         open('version.txt', 'w').write(hash.decode('cp437') + '\n')
+
     except CalledProcessError as build_error:
         logging.error("Could not clone %s: %s (returncode: %s)" % (repo, build_error.output, build_error.returncode))
         logging.exception(build_error)
@@ -68,10 +73,9 @@ def git_clone(git_url=QMK_GIT_URL, git_branch=GIT_BRANCH):
     return True
 
 
-def fetch_source(git_url=QMK_GIT_URL):
+def fetch_source(repo):
     """Retrieve a copy of source from storage.
     """
-    repo = repo_name(git_url)
     repo_zip = repo + '.zip'
 
     if exists(repo_zip):

@@ -129,7 +129,6 @@ def compile_keymap(job, result):
 def find_keymap_path(result):
     for directory in ['.', '..', '../..', '../../..', '../../../..', '../../../../..']:
         basepath = path.normpath('qmk_firmware/keyboards/%s/%s/keymaps' % (result['keyboard'], directory))
-        print('Checking', basepath, 'from', getcwd())
         if path.exists(basepath):
             return '/'.join((basepath, result['keymap']))
 
