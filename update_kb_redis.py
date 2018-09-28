@@ -564,8 +564,7 @@ def update_kb_redis():
 
         # Write the keyboard to redis and add it to the master list.
         qmk_redis.set('qmk_api_kb_%s' % (keyboard), keyboard_info)
-        if keyboard_info['processor_type'] != 'arm':
-            kb_list.append(keyboard)
+        kb_list.append(keyboard)
         cached_json['keyboards'][keyboard] = keyboard_info
 
     # Update the global redis information
