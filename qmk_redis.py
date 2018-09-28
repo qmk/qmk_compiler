@@ -1,5 +1,6 @@
 import json
 from os import environ
+
 from redis import Redis
 
 # Configuration

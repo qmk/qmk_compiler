@@ -1,8 +1,7 @@
 from glob import glob
 from os import chdir, listdir, remove
-from shutil import rmtree
-
 from os.path import exists
+from shutil import rmtree
 from subprocess import check_output, STDOUT, run, PIPE
 from time import strftime
 import json
@@ -13,8 +12,8 @@ from bs4 import UnicodeDammit
 from rq.decorators import job
 
 import qmk_storage
-from qmk_commands import checkout_qmk, memoize, git_hash
 import qmk_redis
+from qmk_commands import checkout_qmk, memoize, git_hash
 
 debug = False
 default_key_entry = {'x':-1, 'y':-1, 'w':1}

@@ -1,7 +1,6 @@
 import functools
 import logging
 import os
-from os import chdir, listdir, environ, remove
 from os.path import exists
 from shutil import rmtree
 from subprocess import check_output, CalledProcessError, STDOUT
@@ -9,10 +8,10 @@ from subprocess import check_output, CalledProcessError, STDOUT
 import qmk_storage
 
 
-GIT_BRANCH = environ.get('GIT_BRANCH', 'master')
-CHIBIOS_GIT_URL = environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
-CHIBIOS_CONTRIB_GIT_URL = environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
-QMK_GIT_URL = environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
+GIT_BRANCH = os.environ.get('GIT_BRANCH', 'master')
+CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
+CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
+QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
 ZIP_EXCLUDES = {
     'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*')
 }
@@ -31,7 +30,7 @@ def checkout_qmk():
 def checkout_chibios():
     """Do whatever is needed to get the latest version of ChibiOS and ChibiOS-Contrib.
     """
-    chdir('qmk_firmware/lib')
+    os.chdir('qmk_firmware/lib')
 
     for submodule in ('chibios', 'chibios-contrib'):
         try:
@@ -43,7 +42,7 @@ def checkout_chibios():
             logging.error(git_error.output)
             raise
 
-    chdir('../..')
+    os.chdir('../..')
 
 
 def git_clone(git_url=QMK_GIT_URL, git_branch=GIT_BRANCH):
@@ -54,14 +53,14 @@ def git_clone(git_url=QMK_GIT_URL, git_branch=GIT_BRANCH):
 
     try:
         check_output(command, stderr=STDOUT, universal_newlines=True)
-        chdir(repo)
+        os.chdir(repo)
         hash = check_output(['git', 'rev-parse', 'HEAD'])
         open('version.txt', 'w').write(hash.decode('cp437') + '\n')
     except CalledProcessError as build_error:
         logging.error("Could not clone %s: %s (returncode: %s)" % (repo, build_error.output, build_error.returncode))
         logging.exception(build_error)
 
-    chdir('..')
+    os.chdir('..')
 
     if exists(repo):
         store_source(git_url)
@@ -76,7 +75,7 @@ def fetch_source(git_url=QMK_GIT_URL):
     repo_zip = repo + '.zip'
 
     if exists(repo_zip):
-        remove(repo_zip)
+        os.remove(repo_zip)
 
     try:
         zipfile_data = qmk_storage.get('cache/%s.zip' % repo)
@@ -92,7 +91,7 @@ def fetch_source(git_url=QMK_GIT_URL):
     try:
         logging.debug('Unzipping %s Source: %s', (repo, zip_command))
         check_output(zip_command)
-        remove(repo_zip)
+        os.remove(repo_zip)
         return True
 
     except CalledProcessError as build_error:
@@ -113,7 +112,7 @@ def store_source(git_url=QMK_GIT_URL):
         zip_command = ['zip', '-r', zipfile_name, repo]
 
     if exists(zipfile_name):
-        remove(zipfile_name)
+        os.remove(zipfile_name)
 
     try:
         logging.debug('Zipping Source: %s', zip_command)
@@ -121,11 +120,11 @@ def store_source(git_url=QMK_GIT_URL):
     except CalledProcessError as build_error:
         logging.error('Could not zip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
         logging.error(build_error.output)
-        remove(zipfile_name)
+        os.remove(zipfile_name)
         return False
 
     qmk_storage.save_file(zipfile_name, os.path.join('cache', zipfile_name), 'application/zip')
-    remove(zipfile_name)
+    os.remove(zipfile_name)
 
     return True
 
@@ -137,7 +136,7 @@ def find_firmware_file(dir='.'):
     file will be delivered in the case of multiple firmware files. The
     assumption is that there will only be one.
     """
-    for file in listdir(dir):
+    for file in os.listdir(dir):
         if file[-4:] in ('.hex', '.bin'):
             return file
 
