@@ -15,9 +15,9 @@ CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://git
 QMK_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'master')
 QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
 ZIP_EXCLUDES = {
-    'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*'),
+    'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'),
     'chibios': ('chibios/.git/*'),
-    'chibios_contrib': ('chibios_contrib/.git/*')
+    'chibios-contrib': ('chibios-contrib/.git/*')
 }
 
 
@@ -35,7 +35,7 @@ def checkout_chibios():
     """Do whatever is needed to get the latest version of ChibiOS and ChibiOS-Contrib.
     """
     chibios = ('chibios', CHIBIOS_GIT_URL, CHIBIOS_GIT_BRANCH)
-    chibios_contrib = ('chibios_contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
+    chibios_contrib = ('chibios-contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
 
     os.chdir('qmk_firmware/lib')
 
@@ -50,9 +50,10 @@ def checkout_chibios():
 
 
 def git_clone(git_url=QMK_GIT_URL, git_branch=QMK_GIT_BRANCH):
-    """Clone QMK from the github source.
+    """Clone a git repo.
     """
     repo = repo_name(git_url)
+    zipfile_name = repo + '.zip'
     command = ['git', 'clone', '--single-branch', '-b', git_branch, git_url, repo]
 
     try:
@@ -60,15 +61,17 @@ def git_clone(git_url=QMK_GIT_URL, git_branch=QMK_GIT_BRANCH):
         os.chdir(repo)
         hash = check_output(['git', 'rev-parse', 'HEAD'])
         open('version.txt', 'w').write(hash.decode('cp437') + '\n')
+        repo_cloned = True
 
     except CalledProcessError as build_error:
+        repo_cloned = False
         logging.error("Could not clone %s: %s (returncode: %s)" % (repo, build_error.output, build_error.returncode))
         logging.exception(build_error)
 
     os.chdir('..')
 
-    if exists(repo):
-        store_source(git_url)
+    if repo_cloned:
+        store_source(zipfile_name, repo, 'cache')
 
     return True
 
@@ -104,16 +107,13 @@ def fetch_source(repo):
         return False
 
 
-def store_source(git_url=QMK_GIT_URL):
+def store_source(zipfile_name, directory, storage_directory):
     """Store a copy of source in storage.
     """
-    repo = repo_name(git_url)
-    zipfile_name = repo + '.zip'
-
-    if repo in ZIP_EXCLUDES:
-        zip_command = ['zip', '-x ' + '-x'.join(ZIP_EXCLUDES[repo]), '-r', zipfile_name, repo]
+    if directory in ZIP_EXCLUDES:
+        zip_command = ['zip', '-x ' + '-x'.join(ZIP_EXCLUDES[directory]), '-r', zipfile_name, directory]
     else:
-        zip_command = ['zip', '-r', zipfile_name, repo]
+        zip_command = ['zip', '-r', zipfile_name, directory]
 
     if exists(zipfile_name):
         os.remove(zipfile_name)
@@ -127,7 +127,7 @@ def store_source(git_url=QMK_GIT_URL):
         os.remove(zipfile_name)
         return False
 
-    qmk_storage.save_file(zipfile_name, os.path.join('cache', zipfile_name), 'application/zip')
+    qmk_storage.save_file(zipfile_name, os.path.join(storage_directory, zipfile_name), 'application/zip')
     os.remove(zipfile_name)
 
     return True

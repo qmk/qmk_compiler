@@ -88,7 +88,7 @@ def store_firmware_source(result):
     """
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
-    store_source()
+    store_source(result['source_archive'], 'qmk_firmware', result['id'])
     result['firmware_source_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'source')]
 
 
