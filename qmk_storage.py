@@ -46,7 +46,6 @@ def delete(object, **kwargs):
 
     Parameters
 
-    * Bucket (string) -- [REQUIRED]
     * Key (string) -- [REQUIRED]
     * MFA (string) -- The concatenation of the authentication device's serial number, a space, and the value that is displayed on your authentication device.
     * VersionId (string) -- VersionId used to reference a specific version of the object.
@@ -58,6 +57,8 @@ def delete(object, **kwargs):
 def list_objects(**kwargs):
     """List the objects in our bucket.
 
+    This function yields objects and handles pagination for you. It will only fetch as many pages as you consume.
+
     Parameters
 
     * Bucket (string) -- [REQUIRED]
@@ -68,7 +69,25 @@ def list_objects(**kwargs):
     * Prefix (string) -- Limits the response to keys that begin with the specified prefix.
     * RequestPayer (string) -- Confirms that the requester knows that she or he will be charged for the list objects request. Bucket owners need not specify this parameter in their requests.
     """
-    return s3.list_objects_v2(Bucket=S3_BUCKET, **kwargs)
+    if 'Bucket' not in kwargs:
+        kwargs['Bucket'] = S3_BUCKET
+
+    while True:
+        resp = s3.list_objects(**kwargs)
+        for obj in resp['Contents']:
+            yield obj
+
+        if 'NextContinuationToken' in resp:
+            print('\nFetching more results from the S3 API.\n')
+            kwargs['ContinuationToken'] = resp['NextContinuationToken']
+        elif 'NextMarker' in resp:
+            print('\nFetching more results from the Spaces API.\n')
+            kwargs['Marker'] = resp['NextMarker']
+        else:
+            del(resp['Contents'])
+            print('Could not find any pagination information:')
+            print(resp)
+            break
 
 
 def save_fd(fd, filename, length, content_type='application/json'):

@@ -19,9 +19,12 @@ def cleanup_storage():
     files = list_objects()
 
     if files:
-        for file in files['Contents']:
+        i = 0
+        for file in files:
+            file_age = now-file['LastModified']
             if now - file['LastModified'] > storage_time:
-                logging.info('Removing %s', file['Key'])
+                print('Deleting #%s: %s' % (i, file['Key']))
+                i += 1
                 delete(file['Key'])
 
 
