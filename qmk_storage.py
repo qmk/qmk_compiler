@@ -74,8 +74,10 @@ def list_objects(**kwargs):
 
     while True:
         resp = s3.list_objects(**kwargs)
-        for obj in resp['Contents']:
-            yield obj
+
+        if 'Contents' in resp:
+            for obj in resp['Contents']:
+                yield obj
 
         if 'NextContinuationToken' in resp:
             print('\nFetching more results from the S3 API.\n')
@@ -84,7 +86,8 @@ def list_objects(**kwargs):
             print('\nFetching more results from the Spaces API.\n')
             kwargs['Marker'] = resp['NextMarker']
         else:
-            del(resp['Contents'])
+            if 'Contents' in resp:
+                del(resp['Contents'])
             print('Could not find any pagination information:')
             print(resp)
             break
