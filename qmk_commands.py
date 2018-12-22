@@ -21,13 +21,13 @@ ZIP_EXCLUDES = {
 }
 
 
-def checkout_qmk():
+def checkout_qmk(skip_cache=False):
     """Do whatever is needed to get the latest version of QMK.
     """
     if exists('qmk_firmware'):
         rmtree('qmk_firmware')
 
-    if not fetch_source(repo_name(QMK_GIT_URL)):
+    if skip_cache or not fetch_source(repo_name(QMK_GIT_URL)):
         git_clone(QMK_GIT_URL, QMK_GIT_BRANCH)
 
 

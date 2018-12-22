@@ -1,5 +1,5 @@
 from glob import glob
-from os import chdir, listdir, remove
+from os import chdir, listdir, remove, mkdir
 from os.path import exists
 from shutil import rmtree
 from subprocess import check_output, STDOUT, run, PIPE
@@ -434,25 +434,23 @@ def find_readme(directory):
 
 
 @job('default', connection=qmk_redis.redis)
-def update_kb_redis():
-    """Called when updates happen to QMK Firmware. Responsible for updating the cached source code and API data.
+def update_needed(**update_info):
+    """Called when updates happen to QMK Firmware.
     """
-    # Check to see if we need to update
-    if exists('qmk_firmware'):
-        last_update = qmk_redis.get('qmk_api_last_updated')
-        if not debug and isinstance(last_update, dict) and last_update['git_hash'] == git_hash():
-            # We are already up to date
-            logging.warning('update_kb_redis(): Already up to date, skipping...')
-            return False
+    qmk_redis.set('qmk_needs_update', True)
 
+
+@job('default', connection=qmk_redis.redis)
+def update_kb_redis():
+    """Called to update qmk_firmware.
+    """
     # Clean up the environment and fetch the latest source
     del(error_log[:])
-    if exists('qmk_firmware'):
-        rmtree('qmk_firmware')
-    if exists('qmk_firmware.zip'):
-        remove('qmk_firmware.zip')
-    qmk_storage.delete('cache/qmk_firmware.zip')
-    checkout_qmk()
+    if exists('update_kb_redis'):
+        rmtree('update_kb_redis')
+    mkdir('update_kb_redis')
+    chdir('update_kb_redis')
+    checkout_qmk(skip_cache=True)
 
     # Update redis with the latest data
     kb_list = []
@@ -571,6 +569,10 @@ def update_kb_redis():
     qmk_redis.set('qmk_api_kb_all', cached_json)
     qmk_redis.set('qmk_api_last_updated', {'git_hash': git_hash(), 'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z')})
     qmk_redis.set('qmk_api_update_error_log', error_log)
+
+    # Cleanup
+    chdir('..')
+    qmk_redis.set('qmk_needs_update', False)
 
     return True
 
