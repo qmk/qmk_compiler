@@ -5,6 +5,8 @@ from os.path import exists
 from shutil import rmtree
 from subprocess import check_output, CalledProcessError, STDOUT
 
+from dhooks import Embed, Webhook
+
 import qmk_storage
 
 
@@ -12,6 +14,11 @@ CHIBIOS_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'qmk')
 CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
 CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'qmk')
 CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
+DISCORD_WARNING_SENT = False
+DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL')
+DISCORD_WEBHOOK_INFO_URL = os.environ.get('DISCORD_WEBHOOK_INFO_URL', DISCORD_WEBHOOK_URL)
+DISCORD_WEBHOOK_WARNING_URL = os.environ.get('DISCORD_WEBHOOK_WARNING_URL', DISCORD_WEBHOOK_URL)
+DISCORD_WEBHOOK_ERROR_URL = os.environ.get('DISCORD_WEBHOOK_ERROR_URL', DISCORD_WEBHOOK_URL)
 QMK_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'master')
 QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
 ZIP_EXCLUDES = {
@@ -19,6 +26,34 @@ ZIP_EXCLUDES = {
     'chibios': ('chibios/.git/*'),
     'chibios-contrib': ('chibios-contrib/.git/*')
 }
+
+severities = {
+    'error': (':open_mouth:', DISCORD_WEBHOOK_ERROR_URL),
+    'info': (':nerd_face:', DISCORD_WEBHOOK_INFO_URL),
+    'warning': (':upside_down_face:', DISCORD_WEBHOOK_WARNING_URL)
+}
+
+
+def discord_msg(severity, source, title, description=None, **fields):
+    """Send a message to discord.
+    """
+    global DISCORD_WARNING_SENT
+
+    severity_icon, discord_url = severities[severity]
+
+    if not discord_url or discord_url == 'none':
+        if not DISCORD_WARNING_SENT:
+            DISCORD_WARNING_SENT = True
+            print('Warning: DISCORD_WEBHOOK_URL not configured, will not send messages to discord.')
+        return
+
+    discord = Webhook(discord_url)
+    title = severity_icon + ' ' + title
+    embed = Embed(title=title, description=description, color=0xff0000, timestamp='now')
+    embed.set_author(source)
+    for field, value in fields.items():
+        embed.add_field(field, value)
+    discord.send(embed=embed)
 
 
 def checkout_qmk(skip_cache=False):
