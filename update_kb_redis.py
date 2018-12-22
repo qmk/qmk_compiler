@@ -450,6 +450,7 @@ def update_kb_redis():
         rmtree('update_kb_redis')
     mkdir('update_kb_redis')
     chdir('update_kb_redis')
+    qmk_redis.set('qmk_needs_update', False)
     checkout_qmk(skip_cache=True)
 
     # Update redis with the latest data
@@ -570,9 +571,7 @@ def update_kb_redis():
     qmk_redis.set('qmk_api_last_updated', {'git_hash': git_hash(), 'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z')})
     qmk_redis.set('qmk_api_update_error_log', error_log)
 
-    # Cleanup
     chdir('..')
-    qmk_redis.set('qmk_needs_update', False)
 
     return True
 
