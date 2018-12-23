@@ -11,7 +11,6 @@ import re
 from bs4 import UnicodeDammit
 from rq.decorators import job
 
-import qmk_storage
 import qmk_redis
 from qmk_commands import checkout_qmk, memoize, git_hash
 
@@ -195,7 +194,7 @@ def preprocess_source(file):
     return results.stdout.replace(' ', '').replace('\n', '')
 
 
-def popluate_enums(keymap_text, keymap):
+def populate_enums(keymap_text, keymap):
     """Pull the enums from the file and assign them (hopefully) correct numbers.
     """
     replacements = {}
@@ -261,7 +260,7 @@ def extract_keymap(keymap_file):
         layout_macro = keymap_macro_re.findall(keymap_text)
     layout_macro = layout_macro[0] if layout_macro else ''
 
-    keymap = popluate_enums(keymap_text, keymap)
+    keymap = populate_enums(keymap_text, keymap)
 
     # Parse layers into a dict keyed by layer number.
     for layer in layers_re.findall(keymap):

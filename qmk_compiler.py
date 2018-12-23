@@ -63,7 +63,7 @@ def store_firmware_metadata(job, result):
     json_obj = BytesIO(json_data.encode('utf-8'))
     filename = '%s/%s.json' % (result['id'], result['id'])
 
-    qmk_storage.save_fd(json_obj, filename, len(json_data))
+    qmk_storage.save_fd(json_obj, filename)
 
 
 def store_firmware_binary(result):
@@ -71,12 +71,11 @@ def store_firmware_binary(result):
     """
     firmware_file = 'qmk_firmware/%s' % result['firmware_filename']
     firmware_storage_path = '%(id)s/%(firmware_filename)s' % result
-    mime_type = 'text/plain' if result['firmware_filename'].endswith('.hex') else 'application/octet-stream'
 
     if not path.exists(firmware_file):
         return False
 
-    qmk_storage.save_file(firmware_file, firmware_storage_path, mime_type)
+    qmk_storage.save_file(firmware_file, firmware_storage_path)
     result['firmware_binary_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'download')]
 
 
