@@ -37,7 +37,7 @@ try:
     s3.create_bucket(Bucket=S3_BUCKET)
 except Exception as e:
     if e.__class__.__name__ not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
-        logging.error('Could not contact S3! Storage related functionality will not work!')
+        logging.warning('Could not contact S3! Storage related functionality will not work!')
         #logging.exception(e)
 
 
@@ -93,7 +93,7 @@ def list_objects(**kwargs):
             break
 
 
-def save_fd(fd, filename, length, content_type='application/json'):
+def save_fd(fd, filename):
     """Store the contents of a file-like object in the configured storage engine.
     """
     if STORAGE_ENGINE == 's3':
@@ -109,7 +109,7 @@ def save_fd(fd, filename, length, content_type='application/json'):
         copyfileobj(fd, open(file_path, 'w'))
 
 
-def save_file(local_filename, remote_filename, content_type='application/json'):
+def save_file(local_filename, remote_filename):
     """Store the contents of a file in the configured storage engine.
     """
     if STORAGE_ENGINE == 's3':
@@ -149,6 +149,8 @@ def put(filename, value):
 
 def get_fd(filename):
     """Retrieve an object from S3 and return a file-like object
+
+    FIXME: This doesn't work as a context manager.
     """
     if STORAGE_ENGINE == 's3':
         s3_object = s3.get_object(Bucket=S3_BUCKET, Key=filename)

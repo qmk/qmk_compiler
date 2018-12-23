@@ -56,13 +56,26 @@ def discord_msg(severity, source, title, description=None, **fields):
     discord.send(embed=embed)
 
 
-def checkout_qmk(skip_cache=False):
+def checkout_qmk(skip_cache=False, require_cache=False):
     """Do whatever is needed to get the latest version of QMK.
+
+    If require_cache is true we only fetch the cached zip file. If
+    skip_cache is true we only clone the source from git. Default
+    behavior is to attempt to fetch the cached zip and if that
+    fails fall back to cloning from git.
+
+    As AssertionError will be thrown if both skip_cache and
+    require_cache are True.
     """
+    if skip_cache and require_cache:
+        raise ValueError('skip_cache and require_cache conflict!')
+
     if exists('qmk_firmware'):
         rmtree('qmk_firmware')
 
-    if skip_cache or not fetch_source(repo_name(QMK_GIT_URL)):
+    if require_cache:
+        fetch_source(repo_name(QMK_GIT_URL))
+    elif skip_cache or not fetch_source(repo_name(QMK_GIT_URL)):
         git_clone(QMK_GIT_URL, QMK_GIT_BRANCH)
 
 
@@ -162,8 +175,7 @@ def store_source(zipfile_name, directory, storage_directory):
         os.remove(zipfile_name)
         return False
 
-    qmk_storage.save_file(zipfile_name, os.path.join(storage_directory, zipfile_name), 'application/zip')
-    os.remove(zipfile_name)
+    qmk_storage.save_file(zipfile_name, os.path.join(storage_directory, zipfile_name))
 
     return True
 
