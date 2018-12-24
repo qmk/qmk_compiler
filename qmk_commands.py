@@ -34,8 +34,29 @@ severities = {
 }
 
 
-def discord_msg(severity, source, title, description=None, **fields):
-    """Send a message to discord.
+def discord_msg(severity, message, include_icon=True):
+    """Send a simple text message to discord.
+    """
+    global DISCORD_WARNING_SENT
+
+    severity_icon, discord_url = severities[severity]
+
+    if not discord_url or discord_url == 'none':
+        if not DISCORD_WARNING_SENT:
+            DISCORD_WARNING_SENT = True
+            print('Warning: DISCORD_WEBHOOK_URL not configured, will not send messages to discord.')
+        return
+
+    discord = Webhook(discord_url)
+
+    if include_icon:
+        discord.send(severity_icon + ' ' + message)
+    else:
+        discord.send(message)
+
+
+def discord_embed(severity, source, title, description=None, **fields):
+    """Send an embedded message to discord.
     """
     global DISCORD_WARNING_SENT
 
