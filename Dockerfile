@@ -22,9 +22,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     zip \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /
-RUN git clone https://github.com/qmk/qmk_compiler_worker.git
-WORKDIR /qmk_compiler_worker
+WORKDIR /qmk_compiler
+COPY . /qmk_compiler
 RUN pip3 install -r requirements.txt
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
