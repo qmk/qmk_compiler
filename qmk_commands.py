@@ -44,15 +44,19 @@ def discord_msg(severity, message, include_icon=True):
     if not discord_url or discord_url == 'none':
         if not DISCORD_WARNING_SENT:
             DISCORD_WARNING_SENT = True
-            print('Warning: DISCORD_WEBHOOK_URL not configured, will not send messages to discord.')
+            logging.warning('DISCORD_WEBHOOK_URL not configured, will not send messages to discord.')
         return
 
-    discord = Webhook(discord_url)
+    try:
+        discord = Webhook(discord_url)
 
-    if include_icon:
-        discord.send(severity_icon + ' ' + message)
-    else:
-        discord.send(message)
+        if include_icon:
+            discord.send(severity_icon + ' ' + message)
+        else:
+            discord.send(message)
+    except Exception as e:
+        logging.error('Unhandled exception when sending discord message:')
+        logging.exception(e)
 
 
 def discord_embed(severity, source, title, description=None, **fields):
@@ -65,16 +69,20 @@ def discord_embed(severity, source, title, description=None, **fields):
     if not discord_url or discord_url == 'none':
         if not DISCORD_WARNING_SENT:
             DISCORD_WARNING_SENT = True
-            print('Warning: DISCORD_WEBHOOK_URL not configured, will not send messages to discord.')
+            logging.warning('DISCORD_WEBHOOK_URL not configured, will not send messages to discord.')
         return
 
-    discord = Webhook(discord_url)
-    title = severity_icon + ' ' + title
-    embed = Embed(title=title, description=description, color=0xff0000, timestamp='now')
-    embed.set_author(source)
-    for field, value in fields.items():
-        embed.add_field(field, value)
-    discord.send(embed=embed)
+    try:
+        discord = Webhook(discord_url)
+        title = severity_icon + ' ' + title
+        embed = Embed(title=title, description=description, color=0xff0000, timestamp='now')
+        embed.set_author(source)
+        for field, value in fields.items():
+            embed.add_field(field, value)
+        discord.send(embed=embed)
+    except Exception as e:
+        logging.error('Unhandled exception when sending discord embed:')
+        logging.exception(e)
 
 
 def checkout_qmk(skip_cache=False, require_cache=False):
