@@ -2,6 +2,7 @@
 minio_data
 qmk_firmware
 firmwares
+update_kb_redis
 __pycache__
 *.pyc
 *.egg-info

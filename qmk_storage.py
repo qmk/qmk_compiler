@@ -17,6 +17,7 @@ S3_BUCKET = environ.get('S3_BUCKET', 'qmk')
 S3_ACCESS_KEY = environ.get('S3_ACCESS_KEY', 'minio_dev')
 S3_SECRET_KEY = environ.get('S3_SECRET_KEY', 'minio_dev_secret')
 S3_SECURE = False
+S3_DOWNLOAD_TIMEOUT = 7200  # 2 hours, how long S3 download URLs are good for
 
 # The `keymap.c` template to use when a keyboard doesn't have its own
 DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
@@ -30,7 +31,13 @@ __KEYMAP_GOES_HERE__
 """
 
 # Objects we need to instaniate
-s3 = boto3.session.Session().client('s3', region_name=S3_LOCATION, endpoint_url=S3_HOST, aws_access_key_id=S3_ACCESS_KEY, aws_secret_access_key=S3_SECRET_KEY)
+session = boto3.session.Session()
+s3 = session.client('s3',
+                    region_name=S3_LOCATION,
+                    endpoint_url=S3_HOST,
+                    aws_access_key_id=S3_ACCESS_KEY,
+                    aws_secret_access_key=S3_SECRET_KEY,
+                    config=botocore.client.Config(signature_version='s3'))
 
 # Check to see if S3 is working, and if not print an error in the log.
 try:
@@ -173,6 +180,13 @@ def get(filename):
         return data.decode('utf-8')
     except UnicodeDecodeError:
         return data
+
+
+def get_public_url(filename):
+    """Returns an S3 URL a client can use to download a file.
+    """
+    params = {'Bucket': S3_BUCKET, 'Key': filename}
+    return s3.generate_presigned_url(ClientMethod='get_object', Params=params, ExpiresIn=S3_DOWNLOAD_TIMEOUT)
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 import json
 import logging
 from io import BytesIO
-from os import chdir, mkdir, environ, path, getcwd
+from os import chdir, mkdir, environ, path, remove
 from subprocess import check_output, CalledProcessError, STDOUT
 from time import strftime
 from traceback import format_exc
@@ -76,7 +76,10 @@ def store_firmware_binary(result):
         return False
 
     qmk_storage.save_file(firmware_file, firmware_storage_path)
-    result['firmware_binary_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'download')]
+    result['firmware_binary_url'] = [
+        qmk_storage.get_public_url(firmware_storage_path),
+        path.join(API_URL, 'v1', 'compile', result['id'], 'download')
+    ]
 
 
 def store_firmware_source(result):
@@ -85,7 +88,10 @@ def store_firmware_source(result):
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
     store_source(result['source_archive'], 'qmk_firmware', result['id'])
-    result['firmware_source_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'source')]
+    result['firmware_source_url'] = [
+        qmk_storage.get_public_url(result['source_archive']),
+        path.join(API_URL, 'v1', 'compile', result['id'], 'source')
+    ]
 
 
 def create_keymap(result, layers):
@@ -133,7 +139,7 @@ def find_keymap_path(result):
 
 
 # Public functions
-@job('default', connection=redis)
+@job('default', connection=redis, timeout=900)
 def compile_firmware(keyboard, keymap, layout, layers):
     """Compile a firmware.
     """
@@ -173,6 +179,7 @@ def compile_firmware(keyboard, keymap, layout, layers):
         # Build the keyboard firmware
         create_keymap(result, layers)
         store_firmware_source(result)
+        remove(result['source_archive'])
         compile_keymap(job, result)
         store_firmware_binary(result)
 
