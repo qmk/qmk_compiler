@@ -9,4 +9,9 @@ if [ x"$REDIS_PORT" = x"" ]; then
     REDIS_PORT=6379
 fi
 
+until redis-cli -h $REDIS_HOST get mypasswd; do
+  echo 'Waiting for redis...'
+  sleep 5
+done
+
 exec rq worker -u redis://@${REDIS_HOST}:${REDIS_PORT}/0
