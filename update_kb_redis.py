@@ -458,6 +458,8 @@ def update_kb_redis():
 
     # Update redis with the latest data
     kb_list = []
+    usb_list = {}  # Structure: VENDOR_ID: {PRODUCT_ID: {KEYBOARD_FOLDER: {'vendor_id': VENDOR_ID, 'product_id': PRODUCT_ID, 'device_ver': DEVICE_VER, 'manufacturer': MANUFACTURER, 'product': PRODUCT, 'keyboard': KEYBOARD_FOLDER}
+
     cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
     for keyboard in list_keyboards():
         keyboard_info = {
@@ -509,12 +511,28 @@ def update_kb_redis():
         config_h = parse_config_h(keyboard)
         rules_mk = parse_rules_mk(keyboard)
 
+        usb_entry = {'keyboard': keyboard}
         for key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER', 'MANUFACTURER', 'DESCRIPTION'):
             if key in config_h:
                 if key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER'):
-                    config_h[key].replace('0x', '')
-                    config_h[key] = config_h[key].upper()
+                    print('Replacing %s before %s' % (key, config_h[key]))
+                    config_h[key] = config_h[key].replace('0x', '')
+                    config_h[key] = '0x' + config_h[key].upper()
+                    print('Replacing %s after %s' % (key, config_h[key]))
                 keyboard_info[key.lower()] = config_h[key]
+                usb_entry[key.lower()] = config_h[key]
+
+        # Populate the usb_list entry for this keyboard
+        vendor_id = usb_entry.get('vendor_id', 'FEED')
+        product_id = usb_entry.get('product_id', '0000')
+
+        if vendor_id not in usb_list:
+            usb_list[vendor_id] = {}
+
+        if product_id not in usb_list[vendor_id]:
+            usb_list[vendor_id][product_id] = {}
+
+        usb_list[vendor_id][product_id][keyboard] = usb_entry
 
         # Setup platform specific keys
         if rules_mk.get('MCU') in ARM_PROCESSORS:
@@ -572,6 +590,7 @@ def update_kb_redis():
     # Update the global redis information
     qmk_redis.set('qmk_api_keyboards', kb_list)
     qmk_redis.set('qmk_api_kb_all', cached_json)
+    qmk_redis.set('qmk_api_usb_list', usb_list)
     qmk_redis.set('qmk_api_last_updated', {'git_hash': git_hash(), 'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z')})
     qmk_redis.set('qmk_api_update_error_log', error_log)
 
