@@ -25,6 +25,10 @@ layers_re = re.compile(r'\[[^\]]*]=[0-9A-Z_]*\([^[]*\)')
 layout_macro_re = re.compile(r']=(LAYOUT[0-9a-z_]*)\(')
 keymap_macro_re = re.compile(r']=(KEYMAP[0-9a-z_]*)\(')
 
+# Processors
+ARM_PROCESSORS = 'cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'STM32F042', 'STM32F072', 'STM32F303'
+AVR_PROCESSORS = 'at90usb1286', 'at90usb646', 'atmega16u2', 'atmega32a', 'atmega32u2', 'atmega32u4'
+
 
 @memoize
 def list_keyboards():
@@ -512,31 +516,32 @@ def update_kb_redis():
                     config_h[key] = config_h[key].upper()
                 keyboard_info[key.lower()] = config_h[key]
 
-        if 'ARMV' in rules_mk:
+        # Setup platform specific keys
+        if rules_mk.get('MCU') in ARM_PROCESSORS:
             keyboard_info['processor_type'] = 'arm'
-            # ARM processors
-            if 'MCU' in rules_mk:
-                keyboard_info['platform'] = rules_mk['MCU_LDSCRIPT']
-            if 'MCU_LDSCRIPT' in rules_mk:
-                keyboard_info['processor'] = rules_mk['MCU_LDSCRIPT']
-            if 'BOOTLOADER' in rules_mk:
-                keyboard_info['bootloader'] = rules_mk['BOOTLOADER']
-            if 'bootloader' not in keyboard_info:
+            keyboard_info['bootloader'] = rules_mk['BOOTLOADER'] if 'BOOTLOADER' in rules_mk else 'unknown'
+            keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
+            if keyboard_info['bootloader'] == 'unknown':
                 if 'STM32' in keyboard_info['processor']:
                     keyboard_info['bootloader'] = 'stm32-dfu'
                 elif keyboard_info.get('manufacturer') == 'Input Club':
                     keyboard_info['bootloader'] = 'kiibohd-dfu'
-        else:
+            if 'STM32' in keyboard_info['processor']:
+                keyboard_info['platform'] = 'STM32'
+            elif 'MCU_SERIES' in rules_mk:
+                keyboard_info['platform'] = rules_mk['MCU_SERIES']
+            elif 'ARM_ATSAM' in rules_mk:
+                keyboard_info['platform'] = 'ARM_ATSAM'
+        elif rules_mk.get('MCU') in AVR_PROCESSORS:
             keyboard_info['processor_type'] = 'avr'
-            # AVR processors
-            if 'ARCH' in rules_mk:
-                keyboard_info['platform'] = rules_mk['ARCH']
-            if 'MCU' in rules_mk:
-                keyboard_info['processor'] = rules_mk['MCU']
-            if 'BOOTLOADER' in rules_mk:
-                keyboard_info['bootloader'] = rules_mk['BOOTLOADER']
-            if 'bootloader' not in keyboard_info:
-                keyboard_info['bootloader'] = 'atmel-dfu'
+            keyboard_info['bootloader'] = rules_mk['BOOTLOADER'] if 'BOOTLOADER' in rules_mk else 'atmel-dfu'
+            keyboard_info['platform'] = rules_mk['ARCH'] if 'ARCH' in rules_mk else 'unknown'
+            keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
+        else:
+            keyboard_info['bootloader'] = 'unknown'
+            keyboard_info['platform'] = 'unknown'
+            keyboard_info['processor'] = 'unknown'
+            keyboard_info['processor_type'] = 'unknown'
 
         keyboard_info['identifier'] = ':'.join((keyboard_info.get('vendor_id', 'unknown'), keyboard_info.get('product_id', 'unknown'), keyboard_info.get('device_ver', 'unknown')))
 
