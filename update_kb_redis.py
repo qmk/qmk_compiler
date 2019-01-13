@@ -111,6 +111,10 @@ def parse_config_h_file(file, config_h=None):
     if exists(file):
         for linenum, line in enumerate(open(file).readlines()):
             line = line.strip()
+
+            if '//' in line:
+                line = line[:line.index('//')].strip()
+
             if not line:
                 continue
 
@@ -162,6 +166,10 @@ def parse_rules_mk_file(file, rules_mk=None):
     if exists(file):
         for line in open(file).readlines():
             line = line.strip().split('#')[0]
+
+            if '#' in line:
+                line = line[:line.index('#')].strip()
+
             if not line:
                 continue
 
@@ -515,16 +523,14 @@ def update_kb_redis():
         for key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER', 'MANUFACTURER', 'DESCRIPTION'):
             if key in config_h:
                 if key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER'):
-                    print('Replacing %s before %s' % (key, config_h[key]))
-                    config_h[key] = config_h[key].replace('0x', '')
-                    config_h[key] = '0x' + config_h[key].upper()
-                    print('Replacing %s after %s' % (key, config_h[key]))
+                    config_h[key] = config_h[key].upper().replace('0X', '')
+                    config_h[key] = '0x' + config_h[key]
                 keyboard_info[key.lower()] = config_h[key]
                 usb_entry[key.lower()] = config_h[key]
 
         # Populate the usb_list entry for this keyboard
-        vendor_id = usb_entry.get('vendor_id', 'FEED')
-        product_id = usb_entry.get('product_id', '0000')
+        vendor_id = usb_entry.get('vendor_id', '0xFEED')
+        product_id = usb_entry.get('product_id', '0x0000')
 
         if vendor_id not in usb_list:
             usb_list[vendor_id] = {}
