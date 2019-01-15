@@ -1,6 +1,7 @@
 .idea
 minio_data
 qmk_firmware
+qmk_firmware.zip
 firmwares
 update_kb_redis
 __pycache__

@@ -1,13 +1,13 @@
 import functools
 import logging
 import os
-from os.path import exists
 from shutil import rmtree
 from subprocess import check_output, CalledProcessError, STDOUT
 
 from dhooks import Embed, Webhook
 
 import qmk_storage
+from qmk_errors import NoSuchKeyboardError
 
 
 CHIBIOS_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'qmk')
@@ -99,7 +99,7 @@ def checkout_qmk(skip_cache=False, require_cache=False):
     if skip_cache and require_cache:
         raise ValueError('skip_cache and require_cache conflict!')
 
-    if exists('qmk_firmware'):
+    if os.path.exists('qmk_firmware'):
         rmtree('qmk_firmware')
 
     if require_cache:
@@ -117,7 +117,7 @@ def checkout_chibios():
     os.chdir('qmk_firmware/lib')
 
     for submodule, git_url, git_branch in chibios, chibios_contrib:
-        if exists(submodule):
+        if os.path.exists(submodule):
             rmtree(submodule)
 
         if not fetch_source(submodule):
@@ -158,7 +158,7 @@ def fetch_source(repo):
     """
     repo_zip = repo + '.zip'
 
-    if exists(repo_zip):
+    if os.path.exists(repo_zip):
         os.remove(repo_zip)
 
     try:
@@ -184,6 +184,42 @@ def fetch_source(repo):
         return False
 
 
+def find_keymap_path(keyboard, keymap):
+    for directory in ['.', '..', '../..', '../../..', '../../../..', '../../../../..']:
+        basepath = os.path.normpath('qmk_firmware/keyboards/%s/%s/keymaps' % (keyboard, directory))
+        if os.path.exists(basepath):
+            return '/'.join((basepath, keymap))
+
+    logging.error('Could not find keymaps directory!')
+    raise NoSuchKeyboardError('Could not find keymaps directory for: %s' % keyboard)
+
+
+def store_keymap(zipfile_name, keyboard, keymap_name, storage_directory):
+    """Store a copy of the keymap in storage.
+    """
+    start_dir = os.getcwd()
+    keymap_path = find_keymap_path(keyboard, keymap_name)
+    os.chdir(keymap_path + '/..')
+    try:
+        zip_command = ['zip', '-r', zipfile_name, keymap_name]
+        if os.path.exists(zipfile_name):
+            os.remove(zipfile_name)
+
+        try:
+            logging.debug('Zipping Keymap: %s', zip_command)
+            check_output(zip_command)
+        except CalledProcessError as build_error:
+            logging.error('Could not zip keymap, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
+            logging.error(build_error.output)
+            os.remove(zipfile_name)
+            return False
+
+        qmk_storage.save_file(zipfile_name, os.path.join(storage_directory, zipfile_name))
+        os.remove(zipfile_name)
+    finally:
+        os.chdir(start_dir)
+
+
 def store_source(zipfile_name, directory, storage_directory):
     """Store a copy of source in storage.
     """
@@ -192,7 +228,7 @@ def store_source(zipfile_name, directory, storage_directory):
     else:
         zip_command = ['zip', '-r', zipfile_name, directory]
 
-    if exists(zipfile_name):
+    if os.path.exists(zipfile_name):
         os.remove(zipfile_name)
 
     try:
@@ -224,7 +260,7 @@ def find_firmware_file(dir='.'):
 def git_hash():
     """Returns the current commit hash for qmk_firmware.
     """
-    if not exists('qmk_firmware'):
+    if not os.path.exists('qmk_firmware'):
         checkout_qmk()
 
     return open('qmk_firmware/version.txt').read().strip()
