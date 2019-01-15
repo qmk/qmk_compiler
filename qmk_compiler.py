@@ -76,10 +76,7 @@ def store_firmware_binary(result):
         return False
 
     qmk_storage.save_file(firmware_file, firmware_storage_path)
-    result['firmware_binary_url'] = [
-        qmk_storage.get_public_url(firmware_storage_path),
-        path.join(API_URL, 'v1', 'compile', result['id'], 'download')
-    ]
+    result['firmware_binary_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'download')]
 
 
 def store_firmware_source(result):
@@ -88,10 +85,7 @@ def store_firmware_source(result):
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
     store_source(result['source_archive'], 'qmk_firmware', result['id'])
-    result['firmware_source_url'] = [
-        qmk_storage.get_public_url(result['source_archive']),
-        path.join(API_URL, 'v1', 'compile', result['id'], 'source')
-    ]
+    result['firmware_source_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'source')]
 
 
 def create_keymap(result, layers):
