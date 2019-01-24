@@ -346,13 +346,9 @@ def find_layouts(file):
             'layout': parsed_keymap
         }
 
-    to_remove = set()
     for alias, text in aliases.items():
         if text in parsed_keymaps:
             parsed_keymaps[alias] = parsed_keymaps[text]
-            to_remove.add(text)
-    for macro in to_remove:
-        del(parsed_keymaps[macro])
 
     return parsed_keymaps
 
@@ -457,12 +453,15 @@ def update_kb_redis():
     """
     # Clean up the environment and fetch the latest source
     del(error_log[:])
-    if exists('update_kb_redis'):
-        rmtree('update_kb_redis')
-    mkdir('update_kb_redis')
+    if not debug:
+        if exists('update_kb_redis'):
+            rmtree('update_kb_redis')
+        mkdir('update_kb_redis')
     chdir('update_kb_redis')
     qmk_redis.set('qmk_needs_update', False)
-    checkout_qmk(skip_cache=True)
+
+    if not debug:
+        checkout_qmk(skip_cache=True)
 
     # Update redis with the latest data
     kb_list = []
