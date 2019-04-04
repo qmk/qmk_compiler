@@ -475,6 +475,7 @@ def update_kb_redis():
             'keymaps': [],
             'layouts': {},
             'maintainer': 'qmk',
+            'readme': False,
         }
         for layout_name, layout_json in find_all_layouts(keyboard).items():
             if not layout_name.startswith('LAYOUT_kc'):
@@ -578,14 +579,18 @@ def update_kb_redis():
                 readme_filename = new_name  # Last one wins
 
         if readme_filename:
-            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme_filename).read())
-            keyboard_info['readme'] = True
+            try:
+                qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme_filename).read())
+                keyboard_info['readme'] = True
+            except UnicodeDecodeError:
+                error_msg = '%s/%s: Invalid file encoding!' % (keyboard, readme_filename)
+                error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
+                logging.error(error_msg)
         else:
             error_msg = '%s does not have a readme.md.' % keyboard
             qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), error_msg)
             error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
             logging.warning(error_msg)
-            keyboard_info['readme'] = False
 
         # Write the keyboard to redis and add it to the master list.
         qmk_redis.set('qmk_api_kb_%s' % (keyboard), keyboard_info)
