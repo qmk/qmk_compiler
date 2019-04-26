@@ -109,7 +109,13 @@ def parse_config_h_file(file, config_h=None):
         config_h = {}
 
     if exists(file):
-        for linenum, line in enumerate(open(file).readlines()):
+        with open(file, 'rb') as fd:
+            config_h_text = fd.read()
+        config_h_text = UnicodeDammit(config_h_text)
+        config_h_text = config_h_text.unicode_markup
+        config_h_text = config_h_text.split('\n')
+
+        for linenum, line in enumerate(config_h_text):
             line = line.strip()
 
             if '//' in line:
@@ -440,6 +446,185 @@ def find_readme(directory):
     return ''
 
 
+def build_keyboard_info(keyboard):
+    """Returns a dictionary describing a keyboard.
+    """
+    return {
+        'keyboard_name': keyboard,
+        'keyboard_folder': keyboard,
+        'keymaps': [],
+        'layouts': {},
+        'maintainer': 'qmk',
+        'readme': False,
+    }
+
+
+def write_keymap_redis(keyboard, keymap_name, keymap_folder, layers, layout_macro):
+    """Write a keymap to redis.
+    """
+    keymap_blob = {
+        'keyboard_name': keyboard,
+        'keymap_name': keymap_name,
+        'keymap_folder': keymap_folder,
+        'layers': layers,
+        'layout_macro': layout_macro
+    }
+
+    qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
+    readme = '%s/%s/readme.md' % (keymap_folder, keymap_name)
+    if exists(readme):
+        with open(readme, 'rb') as readme_fd:
+            readme_text = readme_fd.read()
+        readme_text = UnicodeDammit(readme_text)
+        readme_text = readme_text.unicode_markup
+    else:
+        readme_text = '%s does not exist.' % readme
+    qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), readme_text)
+
+
+def arm_processor_rules(keyboard_info, rules_mk):
+    """Setup the default keyboard info for an ARM board.
+    """
+    keyboard_info['processor_type'] = 'arm'
+    keyboard_info['bootloader'] = rules_mk['BOOTLOADER'] if 'BOOTLOADER' in rules_mk else 'unknown'
+    keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
+    if keyboard_info['bootloader'] == 'unknown':
+        if 'STM32' in keyboard_info['processor']:
+            keyboard_info['bootloader'] = 'stm32-dfu'
+        elif keyboard_info.get('manufacturer') == 'Input Club':
+            keyboard_info['bootloader'] = 'kiibohd-dfu'
+    if 'STM32' in keyboard_info['processor']:
+        keyboard_info['platform'] = 'STM32'
+    elif 'MCU_SERIES' in rules_mk:
+        keyboard_info['platform'] = rules_mk['MCU_SERIES']
+    elif 'ARM_ATSAM' in rules_mk:
+        keyboard_info['platform'] = 'ARM_ATSAM'
+
+
+def avr_processor_rules(keyboard_info, rules_mk):
+    """Setup the default keyboard info for an AVR board.
+    """
+    keyboard_info['processor_type'] = 'avr'
+    keyboard_info['bootloader'] = rules_mk['BOOTLOADER'] if 'BOOTLOADER' in rules_mk else 'atmel-dfu'
+    keyboard_info['platform'] = rules_mk['ARCH'] if 'ARCH' in rules_mk else 'unknown'
+    keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
+
+
+def unknown_processor_rules(keyboard_info, rules_mk):
+    """Setup the default keyboard info for unknown boards.
+    """
+    keyboard_info['bootloader'] = 'unknown'
+    keyboard_info['platform'] = 'unknown'
+    keyboard_info['processor'] = 'unknown'
+    keyboard_info['processor_type'] = 'unknown'
+
+
+def store_keyboard_readme(keyboard_info):
+    """Write a keyboard's readme file to redis.
+    """
+    keyboard = keyboard_info['keyboard_folder']
+    readme_filename = None
+    readme_path = ''
+    for dir in keyboard.split('/'):
+        readme_path = '/'.join((readme_path, dir))
+        new_name = find_readme('qmk_firmware/keyboards%s' % (readme_path))
+        if new_name:
+            readme_filename = new_name  # Last one wins
+
+    if readme_filename:
+        try:
+            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme_filename).read())
+            keyboard_info['readme'] = True
+        except UnicodeDecodeError:
+            error_msg = '%s/%s: Invalid file encoding!' % (keyboard, readme_filename)
+            error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
+            logging.error(error_msg)
+    else:
+        error_msg = '%s does not have a readme.md.' % keyboard
+        qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), error_msg)
+        error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
+        logging.warning(error_msg)
+
+
+def build_usb_entry(keyboard_info, config_h, usb_list):
+    """Returns the default USB entry for a keyboard based on its config.h contents.
+    """
+    usb_entry = {'keyboard': keyboard_info['keyboard_folder']}
+    for key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER', 'MANUFACTURER', 'DESCRIPTION'):
+        if key in config_h:
+            if key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER'):
+                config_h[key] = config_h[key].upper().replace('0X', '')
+                config_h[key] = '0x' + config_h[key]
+            keyboard_info[key.lower()] = config_h[key]
+            usb_entry[key.lower()] = config_h[key]
+
+    vendor_id = usb_entry['vendor_id'] = usb_entry.get('vendor_id', '0xFEED')
+    product_id = usb_entry['product_id'] = usb_entry.get('product_id', '0x0000')
+
+    if vendor_id not in usb_list:
+        usb_list[vendor_id] = {}
+
+    if product_id not in usb_list[vendor_id]:
+        usb_list[vendor_id][product_id] = {}
+
+    return usb_entry
+
+
+def process_keyboard(keyboard, usb_list, kb_list, cached_json):
+    """Parse all the files associated with a specific keyboard to build an API object for it.
+    """
+    keyboard_info = build_keyboard_info(keyboard)
+
+    for layout_name, layout_json in find_all_layouts(keyboard).items():
+        if not layout_name.startswith('LAYOUT_kc'):
+            keyboard_info['layouts'][layout_name] = layout_json
+
+    for info_json_filename in find_info_json(keyboard):
+        # Iterate through all the possible info.json files to build the final keyboard JSON.
+        try:
+            with open(info_json_filename) as info_file:
+                keyboard_info = merge_info_json(info_file, keyboard_info)
+        except Exception as e:
+            error_msg = 'Error encountered processing %s! %s: %s' % (keyboard, e.__class__.__name__, e)
+            error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
+            logging.error(error_msg)
+            logging.exception(e)
+
+    # Iterate through all the possible keymaps to build keymap jsons.
+    for keymap_name, keymap_folder, layout_macro, layers in find_keymaps(keyboard):
+        keyboard_info['keymaps'].append(keymap_name)
+        write_keymap_redis(keyboard, keymap_name, keymap_folder, layers, layout_macro)
+
+    # Pull some keyboard information from existing rules.mk and config.h files
+    config_h = parse_config_h(keyboard)
+    rules_mk = parse_rules_mk(keyboard)
+    usb_entry = build_usb_entry(keyboard_info, config_h, usb_list)
+    usb_list[usb_entry['vendor_id']][usb_entry['product_id']][keyboard] = usb_entry
+
+    # Setup platform specific keys
+    if rules_mk.get('MCU') in ARM_PROCESSORS:
+        arm_processor_rules(keyboard_info, rules_mk)
+    elif rules_mk.get('MCU') in AVR_PROCESSORS:
+        avr_processor_rules(keyboard_info, rules_mk)
+    else:
+        unknown_processor_rules(keyboard_info, rules_mk)
+
+    # Used to identify keyboards in the redis key qmk_api_usb_list.
+    keyboard_info['identifier'] = ':'.join((
+        keyboard_info.get('vendor_id', 'unknown'),
+        keyboard_info.get('product_id', 'unknown'),
+        keyboard_info.get('device_ver', 'unknown')
+    ))
+
+    # Store the keyboard's readme in redis
+    store_keyboard_readme(keyboard_info)
+
+    # Write the keyboard to redis and add it to the master list.
+    qmk_redis.set('qmk_api_kb_%s' % (keyboard), keyboard_info)
+    kb_list.append(keyboard)
+    cached_json['keyboards'][keyboard] = keyboard_info
+
+
 @job('default', connection=qmk_redis.redis)
 def update_needed(**update_info):
     """Called when updates happen to QMK Firmware.
@@ -457,10 +642,10 @@ def update_kb_redis():
         if exists('update_kb_redis'):
             rmtree('update_kb_redis')
         mkdir('update_kb_redis')
-    chdir('update_kb_redis')
+        chdir('update_kb_redis')
     qmk_redis.set('qmk_needs_update', False)
 
-    if not debug:
+    if not debug or not exists('qmk_firmware'):
         checkout_qmk(skip_cache=True)
 
     # Update redis with the latest data
@@ -469,133 +654,15 @@ def update_kb_redis():
 
     cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
     for keyboard in list_keyboards():
-        keyboard_info = {
-            'keyboard_name': keyboard,
-            'keyboard_folder': keyboard,
-            'keymaps': [],
-            'layouts': {},
-            'maintainer': 'qmk',
-            'readme': False,
-        }
-        for layout_name, layout_json in find_all_layouts(keyboard).items():
-            if not layout_name.startswith('LAYOUT_kc'):
-                keyboard_info['layouts'][layout_name] = layout_json
+        try:
+            process_keyboard(keyboard, usb_list, kb_list, cached_json)
 
-        for info_json_filename in find_info_json(keyboard):
-            # Iterate through all the possible info.json files to build the final keyboard JSON.
-            try:
-                with open(info_json_filename) as info_file:
-                    keyboard_info = merge_info_json(info_file, keyboard_info)
-            except Exception as e:
-                error_msg = 'Error encountered processing %s! %s: %s' % (keyboard, e.__class__.__name__, e)
-                error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-                logging.error(error_msg)
-                logging.exception(e)
-
-        # Iterate through all the possible keymaps to build keymap jsons.
-        for keymap_name, keymap_folder, layout_macro, keymap in find_keymaps(keyboard):
-            keyboard_info['keymaps'].append(keymap_name)
-            keymap_blob = {
-                'keyboard_name': keyboard,
-                'keymap_name': keymap_name,
-                'keymap_folder': keymap_folder,
-                'layers': keymap,
-                'layout_macro': layout_macro
-            }
-
-            # Write the keymap to redis
-            qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
-            readme = '%s/%s/readme.md' % (keymap_folder, keymap_name)
-            if exists(readme):
-                with open(readme, 'rb') as readme_fd:
-                    readme_text = readme_fd.read()
-                readme_text = UnicodeDammit(readme_text)
-                readme_text = readme_text.unicode_markup
-            else:
-                readme_text = '%s does not exist.' % readme
-            qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), readme_text)
-
-        # Pull some keyboard information from existing rules.mk and config.h files
-        config_h = parse_config_h(keyboard)
-        rules_mk = parse_rules_mk(keyboard)
-
-        usb_entry = {'keyboard': keyboard}
-        for key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER', 'MANUFACTURER', 'DESCRIPTION'):
-            if key in config_h:
-                if key in ('VENDOR_ID', 'PRODUCT_ID', 'DEVICE_VER'):
-                    config_h[key] = config_h[key].upper().replace('0X', '')
-                    config_h[key] = '0x' + config_h[key]
-                keyboard_info[key.lower()] = config_h[key]
-                usb_entry[key.lower()] = config_h[key]
-
-        # Populate the usb_list entry for this keyboard
-        vendor_id = usb_entry.get('vendor_id', '0xFEED')
-        product_id = usb_entry.get('product_id', '0x0000')
-
-        if vendor_id not in usb_list:
-            usb_list[vendor_id] = {}
-
-        if product_id not in usb_list[vendor_id]:
-            usb_list[vendor_id][product_id] = {}
-
-        usb_list[vendor_id][product_id][keyboard] = usb_entry
-
-        # Setup platform specific keys
-        if rules_mk.get('MCU') in ARM_PROCESSORS:
-            keyboard_info['processor_type'] = 'arm'
-            keyboard_info['bootloader'] = rules_mk['BOOTLOADER'] if 'BOOTLOADER' in rules_mk else 'unknown'
-            keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
-            if keyboard_info['bootloader'] == 'unknown':
-                if 'STM32' in keyboard_info['processor']:
-                    keyboard_info['bootloader'] = 'stm32-dfu'
-                elif keyboard_info.get('manufacturer') == 'Input Club':
-                    keyboard_info['bootloader'] = 'kiibohd-dfu'
-            if 'STM32' in keyboard_info['processor']:
-                keyboard_info['platform'] = 'STM32'
-            elif 'MCU_SERIES' in rules_mk:
-                keyboard_info['platform'] = rules_mk['MCU_SERIES']
-            elif 'ARM_ATSAM' in rules_mk:
-                keyboard_info['platform'] = 'ARM_ATSAM'
-        elif rules_mk.get('MCU') in AVR_PROCESSORS:
-            keyboard_info['processor_type'] = 'avr'
-            keyboard_info['bootloader'] = rules_mk['BOOTLOADER'] if 'BOOTLOADER' in rules_mk else 'atmel-dfu'
-            keyboard_info['platform'] = rules_mk['ARCH'] if 'ARCH' in rules_mk else 'unknown'
-            keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
-        else:
-            keyboard_info['bootloader'] = 'unknown'
-            keyboard_info['platform'] = 'unknown'
-            keyboard_info['processor'] = 'unknown'
-            keyboard_info['processor_type'] = 'unknown'
-
-        keyboard_info['identifier'] = ':'.join((keyboard_info.get('vendor_id', 'unknown'), keyboard_info.get('product_id', 'unknown'), keyboard_info.get('device_ver', 'unknown')))
-
-        # Store the keyboard's readme in redis
-        readme_filename = None
-        readme_path = ''
-        for dir in keyboard.split('/'):
-            readme_path = '/'.join((readme_path, dir))
-            new_name = find_readme('qmk_firmware/keyboards%s' % (readme_path))
-            if new_name:
-                readme_filename = new_name  # Last one wins
-
-        if readme_filename:
-            try:
-                qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme_filename).read())
-                keyboard_info['readme'] = True
-            except UnicodeDecodeError:
-                error_msg = '%s/%s: Invalid file encoding!' % (keyboard, readme_filename)
-                error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-                logging.error(error_msg)
-        else:
-            error_msg = '%s does not have a readme.md.' % keyboard
-            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), error_msg)
-            error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
-            logging.warning(error_msg)
-
-        # Write the keyboard to redis and add it to the master list.
-        qmk_redis.set('qmk_api_kb_%s' % (keyboard), keyboard_info)
-        kb_list.append(keyboard)
-        cached_json['keyboards'][keyboard] = keyboard_info
+        except Exception as e:
+            # Uncaught exception handler. Ideally this is never hit.
+            error_msg = 'Uncaught exception while processing keyboard %s! %s: %s' % (keyboard, e.__class__.__name__, str(e))
+            error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
+            logging.error(error_msg)
+            logging.exception(e)
 
     # Update the global redis information
     qmk_redis.set('qmk_api_keyboards', kb_list)
@@ -603,6 +670,7 @@ def update_kb_redis():
     qmk_redis.set('qmk_api_usb_list', usb_list)
     qmk_redis.set('qmk_api_last_updated', {'git_hash': git_hash(), 'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z')})
     qmk_redis.set('qmk_api_update_error_log', error_log)
+    print('*** All keys successfully written to redis!')
 
     chdir('..')
 
@@ -612,4 +680,12 @@ def update_kb_redis():
 if __name__ == '__main__':
     debug = True
 
-    update_kb_redis()
+    import sys
+    if len(sys.argv) > 1:
+        keyboard = sys.argv[1]
+        cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
+        usb_list = {}
+        kb_list = []
+        process_keyboard(keyboard, usb_list, kb_list, cached_json)
+    else:
+        update_kb_redis()
