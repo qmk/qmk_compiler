@@ -1,5 +1,5 @@
 from glob import glob
-from os import chdir, listdir, remove, mkdir
+from os import chdir, listdir, mkdir
 from os.path import exists
 from shutil import rmtree
 from subprocess import check_output, STDOUT, run, PIPE
@@ -19,7 +19,7 @@ default_key_entry = {'x':-1, 'y':-1, 'w':1}
 error_log = []
 
 # Regexes
-enum_re = re.compile(r'enum[^{]*[^}]*')
+enum_re = re.compile(r'enum[^{]*{[^}]')
 keymap_re = re.compile(r'constuint[0-9]*_t[PROGMEM]*keymaps[^;]*')
 layers_re = re.compile(r'\[[^\]]*]=[0-9A-Z_]*\([^[]*\)')
 layout_macro_re = re.compile(r']=(LAYOUT[0-9a-z_]*)\(')
@@ -27,10 +27,41 @@ keymap_macro_re = re.compile(r']=(KEYMAP[0-9a-z_]*)\(')
 
 # Processors
 ARM_PROCESSORS = 'cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'STM32F042', 'STM32F072', 'STM32F303'
-AVR_PROCESSORS = 'at90usb1286', 'at90usb646', 'atmega16u2', 'atmega32a', 'atmega32u2', 'atmega32u4'
+AVR_PROCESSORS = 'at90usb1286', 'at90usb646', 'atmega16u2', 'atmega328p', 'atmega32a', 'atmega32u2', 'atmega32u4', None
 
 
-@memoize
+def log_error(message):
+    """Writes a log message to both the std logging module and the JSON error_log.
+    """
+    error_log.append({'severity': 'error', 'message': 'Error: ' + message})
+    logging.error(message)
+
+
+def log_warning(message):
+    """Writes a log message to both the std logging module and the JSON error_log.
+    """
+    error_log.append({'severity': 'warning', 'message': 'Warning: ' + message})
+    logging.warning(message)
+
+
+def unicode_text(filename):
+    """Returns the contents of filename as a UTF-8 string. Tries to DTRT when it comes to encoding.
+    """
+    with open(filename, 'rb') as fd:
+        text = UnicodeDammit(fd.read())
+
+    if text.contains_replacement_characters:
+        log_warning('%s: Could not determine file encoding, some characters were replaced.' % (filename,))
+
+    return text.unicode_markup or ''
+
+
+def unicode_lines(filename):
+    """Returns the contents of filename as a UTF-8 string. Tries to DTRT when it comes to encoding.
+    """
+    return unicode_text(filename).split('\n')
+
+
 def list_keyboards():
     """Extract the list of keyboards from qmk_firmware.
     """
@@ -44,7 +75,6 @@ def list_keyboards():
     return keyboards.split()
 
 
-@memoize
 def find_all_layouts(keyboard):
     """Looks for layout macros associated with this keyboard.
     """
@@ -62,9 +92,7 @@ def find_all_layouts(keyboard):
     if not layouts:
         # If we didn't find any layouts above we widen our search. This is error
         # prone which is why we want to encourage people to follow the standard above.
-        error_msg = '%s: Falling back to searching for KEYMAP/LAYOUT macros.' % (keyboard)
-        error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
-        logging.warning(error_msg)
+        log_warning('%s: Falling back to searching for KEYMAP/LAYOUT macros.' % (keyboard))
         for file in glob('qmk_firmware/%s/*.h' % keyboard):
             if file.endswith('.h'):
                 these_layouts = find_layouts(file)
@@ -82,9 +110,7 @@ def find_all_layouts(keyboard):
                 supported_layouts.remove(layout_name)
 
         if supported_layouts:
-            error_msg = '%s: Missing layout pp macro for %s' % (keyboard, supported_layouts)
-            error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
-            logging.warning(error_msg)
+            log_error('%s: Missing layout pp macro for %s' % (keyboard, supported_layouts))
 
     return layouts
 
@@ -109,13 +135,9 @@ def parse_config_h_file(file, config_h=None):
         config_h = {}
 
     if exists(file):
-        with open(file, 'rb') as fd:
-            config_h_text = fd.read()
-        config_h_text = UnicodeDammit(config_h_text)
-        config_h_text = config_h_text.unicode_markup
-        config_h_text = config_h_text.split('\n')
+        config_h_lines = unicode_lines(file)
 
-        for linenum, line in enumerate(config_h_text):
+        for linenum, line in enumerate(config_h_lines):
             line = line.strip()
 
             if '//' in line:
@@ -128,9 +150,7 @@ def parse_config_h_file(file, config_h=None):
 
             if line[0] == '#define':
                 if len(line) == 1:
-                    error_msg = '%s: Incomplete #define! On or around line %s' % (file, linenum)
-                    error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-                    logging.error(error_msg)
+                    log_error('%s: Incomplete #define! On or around line %s' % (file, linenum))
                 elif len(line) == 2:
                     config_h[line[1]] = True
                 else:
@@ -144,9 +164,7 @@ def parse_config_h_file(file, config_h=None):
                         else:
                             config_h[line[1]] = False
                 else:
-                    error_msg = '%s: Incomplete #undef! On or around line %s' % (file, linenum)
-                    error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-                    logging.error(error_msg)
+                    log_error('%s: Incomplete #undef! On or around line %s' % (file, linenum))
 
     return config_h
 
@@ -170,7 +188,9 @@ def parse_rules_mk_file(file, rules_mk=None):
         rules_mk = {}
 
     if exists(file):
-        for line in open(file).readlines():
+        rules_mk_lines = unicode_lines(file)
+
+        for line in rules_mk_lines:
             line = line.strip().split('#')[0]
 
             if '#' in line:
@@ -186,7 +206,8 @@ def parse_rules_mk_file(file, rules_mk=None):
                         rules_mk[key.strip()] = value.strip()
                     else:
                         rules_mk[key.strip()] += ' ' + value.strip()
-                elif '=' in line:
+
+                else:
                     key, value = line.split('=', 1)
                     rules_mk[key.strip()] = value.strip()
 
@@ -217,9 +238,6 @@ def populate_enums(keymap_text, keymap):
     """
     replacements = {}
     for enum in enum_re.findall(keymap_text):
-        if '{' not in enum:
-            logging.error('Matched enum without a curlybrace? %s', enum)
-            continue
         enum = enum.split('{')[1]
         index = 0
 
@@ -255,7 +273,7 @@ def extract_layouts(keymap_text, keymap_file):
     try:
         keymap = keymap_re.findall(keymap_text)[0]
     except IndexError:
-        logging.error('Could not extract LAYOUT for %s!', keymap_file)
+        logging.warning('Could not find any layers in %s!', keymap_file)
         return None
 
     return keymap
@@ -307,12 +325,12 @@ def find_layouts(file):
     """Returns list of parsed layout macros found in the supplied file.
     """
     aliases = {}  # Populated with all `#define`s that aren't functions
-    source_code=open(file).readlines()
     writing_keymap=False
     discovered_keymaps=[]
     parsed_keymaps={}
     current_keymap=[]
-    for line in source_code:
+
+    for line in unicode_lines(file):
         if not writing_keymap:
             if '#define' in line and '(' in line and ('LAYOUT' in line or 'KEYMAP' in line):
                 writing_keymap=True
@@ -322,6 +340,7 @@ def find_layouts(file):
                     aliases[pp_macro_name] = pp_macro_text
                 except ValueError:
                     continue
+
         if writing_keymap:
             current_keymap.append(line.strip()+'\n')
             if ')' in line:
@@ -401,22 +420,18 @@ def find_keymaps(keyboard):
                     yield (keymap, keymap_folder, layout_macro, layers)
 
 
-def merge_info_json(info_fd, keyboard_info):
+def merge_info_json(info_json, keyboard_info):
     """Merge the parsed keyboard_info data with the parsed info.json and return the full JSON that will ultimately be stored in redis.
     """
     try:
-        info_json = json.load(info_fd)
+        with open(info_json) as info_fd:
+            info_json = json.load(info_fd)
     except Exception as e:
-        error_msg = "%s is invalid JSON: %s" % (info_fd.name, e)
-        error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-        logging.error(error_msg)
-        logging.exception(e)
+        log_error("Could not parse %s as JSON: %s" % (info_fd.name, e))
         return keyboard_info
 
     if not isinstance(info_json, dict):
-        error_msg = "%s is invalid! Should be a JSON dict object."% (info_fd.name)
-        error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-        logging.error(error_msg)
+        log_error("%s is invalid! Should be a JSON dict object."% (info_fd.name))
         return keyboard_info
 
     for key in ('keyboard_name', 'manufacturer', 'identifier', 'url', 'maintainer', 'processor', 'bootloader', 'width', 'height'):
@@ -428,9 +443,13 @@ def merge_info_json(info_fd, keyboard_info):
             # Only pull in layouts we have a macro for
             if layout_name in keyboard_info['layouts']:
                 if len(keyboard_info['layouts'][layout_name]['layout']) != len(json_layout['layout']):
-                    error_msg = '%s: %s: Number of elements in info.json does not match! info.json:%s != %s:%s' % (keyboard_info['keyboard_folder'], layout_name, len(json_layout['layout']), layout_name, len(keyboard_info['layouts'][layout_name]['layout']))
-                    error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-                    logging.error(error_msg)
+                    log_args = {
+                        'keyboard': keyboard_info['keyboard_folder'],
+                        'layout': layout_name,
+                        'info_len': len(json_layout['layout']),
+                        'keymap_len': len(keyboard_info['layouts'][layout_name]['layout'])
+                    }
+                    log_error('%(keyboard)s: %(layout)s: Number of elements in info.json does not match! info.json:%(info_len)s != %(layout)s:%(keymap_len)s' % log_args)
                 else:
                     keyboard_info['layouts'][layout_name]['layout'] = json_layout['layout']
 
@@ -470,15 +489,10 @@ def write_keymap_redis(keyboard, keymap_name, keymap_folder, layers, layout_macr
         'layout_macro': layout_macro
     }
 
-    qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
     readme = '%s/%s/readme.md' % (keymap_folder, keymap_name)
-    if exists(readme):
-        with open(readme, 'rb') as readme_fd:
-            readme_text = readme_fd.read()
-        readme_text = UnicodeDammit(readme_text)
-        readme_text = readme_text.unicode_markup
-    else:
-        readme_text = '%s does not exist.' % readme
+    readme_text = unicode_text(readme) if exists(readme) else '%s does not exist.' % readme
+
+    qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
     qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), readme_text)
 
 
@@ -532,18 +546,10 @@ def store_keyboard_readme(keyboard_info):
             readme_filename = new_name  # Last one wins
 
     if readme_filename:
-        try:
-            qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), open(readme_filename).read())
-            keyboard_info['readme'] = True
-        except UnicodeDecodeError:
-            error_msg = '%s/%s: Invalid file encoding!' % (keyboard, readme_filename)
-            error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-            logging.error(error_msg)
+        qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), unicode_text(readme_filename))
+        keyboard_info['readme'] = True
     else:
-        error_msg = '%s does not have a readme.md.' % keyboard
-        qmk_redis.set('qmk_api_kb_%s_readme' % (keyboard), error_msg)
-        error_log.append({'severity': 'warning', 'message': 'Warning: ' + error_msg})
-        logging.warning(error_msg)
+        log_warning('%s does not have a readme.md.' % keyboard)
 
 
 def build_usb_entry(keyboard_info, config_h, usb_list):
@@ -570,7 +576,7 @@ def build_usb_entry(keyboard_info, config_h, usb_list):
     return usb_entry
 
 
-def process_keyboard(keyboard, usb_list, kb_list, cached_json):
+def process_keyboard(keyboard, usb_list, kb_list, kb_entries):
     """Parse all the files associated with a specific keyboard to build an API object for it.
     """
     keyboard_info = build_keyboard_info(keyboard)
@@ -580,15 +586,8 @@ def process_keyboard(keyboard, usb_list, kb_list, cached_json):
             keyboard_info['layouts'][layout_name] = layout_json
 
     for info_json_filename in find_info_json(keyboard):
-        # Iterate through all the possible info.json files to build the final keyboard JSON.
-        try:
-            with open(info_json_filename) as info_file:
-                keyboard_info = merge_info_json(info_file, keyboard_info)
-        except Exception as e:
-            error_msg = 'Error encountered processing %s! %s: %s' % (keyboard, e.__class__.__name__, e)
-            error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-            logging.error(error_msg)
-            logging.exception(e)
+        # Merge info.json files into one.
+        keyboard_info = merge_info_json(info_json_filename, keyboard_info)
 
     # Iterate through all the possible keymaps to build keymap jsons.
     for keymap_name, keymap_folder, layout_macro, layers in find_keymaps(keyboard):
@@ -602,11 +601,13 @@ def process_keyboard(keyboard, usb_list, kb_list, cached_json):
     usb_list[usb_entry['vendor_id']][usb_entry['product_id']][keyboard] = usb_entry
 
     # Setup platform specific keys
-    if rules_mk.get('MCU') in ARM_PROCESSORS:
+    mcu = rules_mk.get('MCU')
+    if mcu in ARM_PROCESSORS:
         arm_processor_rules(keyboard_info, rules_mk)
-    elif rules_mk.get('MCU') in AVR_PROCESSORS:
+    elif mcu in AVR_PROCESSORS:
         avr_processor_rules(keyboard_info, rules_mk)
     else:
+        log_warning("%s: Unknown MCU: %s" % (keyboard, mcu))
         unknown_processor_rules(keyboard_info, rules_mk)
 
     # Used to identify keyboards in the redis key qmk_api_usb_list.
@@ -622,7 +623,7 @@ def process_keyboard(keyboard, usb_list, kb_list, cached_json):
     # Write the keyboard to redis and add it to the master list.
     qmk_redis.set('qmk_api_kb_%s' % (keyboard), keyboard_info)
     kb_list.append(keyboard)
-    cached_json['keyboards'][keyboard] = keyboard_info
+    kb_entries['keyboards'][keyboard] = keyboard_info
 
 
 @job('default', connection=qmk_redis.redis)
@@ -652,25 +653,23 @@ def update_kb_redis():
     kb_list = []
     usb_list = {}  # Structure: VENDOR_ID: {PRODUCT_ID: {KEYBOARD_FOLDER: {'vendor_id': VENDOR_ID, 'product_id': PRODUCT_ID, 'device_ver': DEVICE_VER, 'manufacturer': MANUFACTURER, 'product': PRODUCT, 'keyboard': KEYBOARD_FOLDER}
 
-    cached_json = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
+    kb_all = {'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z'), 'keyboards': {}}
     for keyboard in list_keyboards():
         try:
-            process_keyboard(keyboard, usb_list, kb_list, cached_json)
+            process_keyboard(keyboard, usb_list, kb_list, kb_all)
 
         except Exception as e:
             # Uncaught exception handler. Ideally this is never hit.
-            error_msg = 'Uncaught exception while processing keyboard %s! %s: %s' % (keyboard, e.__class__.__name__, str(e))
-            error_log.append({'severity': 'error', 'message': 'Error: ' + error_msg})
-            logging.error(error_msg)
+            log_error('Uncaught exception while processing keyboard %s! %s: %s' % (keyboard, e.__class__.__name__, str(e)))
             logging.exception(e)
 
     # Update the global redis information
     qmk_redis.set('qmk_api_keyboards', kb_list)
-    qmk_redis.set('qmk_api_kb_all', cached_json)
+    qmk_redis.set('qmk_api_kb_all', kb_all)
     qmk_redis.set('qmk_api_usb_list', usb_list)
     qmk_redis.set('qmk_api_last_updated', {'git_hash': git_hash(), 'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z')})
     qmk_redis.set('qmk_api_update_error_log', error_log)
-    print('*** All keys successfully written to redis!')
+    print('*** All keys successfully written to redis! Total size:', len(json.dumps(kb_all)))
 
     chdir('..')
 
