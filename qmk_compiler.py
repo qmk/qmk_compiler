@@ -14,7 +14,6 @@ import qmk_storage
 from qmk_commands import checkout_qmk, find_firmware_file, find_keymap_path, store_source, checkout_chibios, store_keymap
 from qmk_redis import redis
 
-
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
 # The `keymap.c` template to use when a keyboard doesn't have its own
 DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
@@ -60,7 +59,7 @@ def generate_keymap_readme(keymap_path):
         "* Copy this folder into %s",
         "* You are now ready to compile or use your keymap with the source",
         "",
-        "More information can be found in the QMK docs: <https://docs.qmk.fm>"
+        "More information can be found in the QMK docs: <https://docs.qmk.fm>",
     ]
 
     return '\n'.join(readme)
@@ -161,7 +160,7 @@ def compile_firmware(keyboard, keymap, layout, layers):
         'returncode': -2,
         'output': '',
         'firmware': None,
-        'firmware_filename': ''
+        'firmware_filename': '',
     }
 
     try:
@@ -174,8 +173,10 @@ def compile_firmware(keyboard, keymap, layout, layers):
             logging.error('Unknown keyboard: %s', keyboard)
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
-        for pathname in ('qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap),
-                         'qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap)):
+        for pathname in (
+            'qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap),
+            'qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap),
+        ):
             if path.exists(pathname):
                 logging.error('Name collision! %s already exists! This should not happen!', pathname)
                 return {'returncode': -1, 'command': '', 'output': 'Keymap name collision! %s already exists!' % (pathname), 'firmware': None}

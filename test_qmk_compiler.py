@@ -21,7 +21,6 @@ import pytest
 import update_kb_redis
 import qmk_commands
 
-
 ############################################################################
 # Setup Environment                                                        #
 ############################################################################
@@ -143,9 +142,9 @@ def test_0017_find_all_layouts_cluecard():
             {'label': 'k11', 'w': 1, 'x': 0, 'y': 3},
             {'label': 'k30', 'w': 1, 'x': 0, 'y': 4},
             {'label': 'k31', 'w': 1, 'x': 1, 'y': 4},
-            {'label': 'k32', 'w': 1, 'x': 2, 'y': 4}
+            {'label': 'k32', 'w': 1, 'x': 2, 'y': 4},
         ]
-    }
+    } # yapf: disable
 
 
 ### FIXME: Need to write a test for update_kb_redis.parse_config_h()
@@ -176,7 +175,7 @@ def test_0019_parse_config_h_file_cluecard():
         'RGBLED_NUM': '4 // Number of LEDs',
         'RGBLIGHT_HUE_STEP': '10',
         'RGBLIGHT_SAT_STEP': '17',
-        'RGBLIGHT_VAL_STEP': '17'
+        'RGBLIGHT_VAL_STEP': '17',
     }
 
 
@@ -205,7 +204,7 @@ def test_0021_parse_rules_mk_file_cluecard():
         'OPT_DEFS': '-DINTERRUPT_CONTROL_ENDPOINT -DBOOTLOADER_SIZE=4096',
         'RGBLIGHT_ENABLE': 'yes',
         'SLEEP_LED_ENABLE': 'no',
-        'UNICODE_ENABLE': 'no'
+        'UNICODE_ENABLE': 'no',
     }
 
 
@@ -281,7 +280,7 @@ def test_0027_find_layouts_cluecard():
                 {'x': 1, 'y': 4, 'w': 1, 'label': 'k31'}, {'x': 2, 'y': 4, 'w': 1, 'label': 'k32'}
             ]
         }
-    }
+    }  # yapf: disable
 
 
 def test_0028_find_info_json_clueboard_66_rev3():
@@ -300,7 +299,7 @@ def test_0029_find_keymaps_cluecard():
           'F(1)', 'F(2)']],
         [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'KC_NO',
           'KC_NO', 'KC_NO']]
-    ]
+    ]  # yapf: disable
     for keymap_name, keymap_path, keymap_macro, keymap in update_kb_redis.find_keymaps('clueboard/card'):
         assert keymap_name == keymap_names.pop(0)
         assert keymap_path == 'qmk_firmware/keyboards/clueboard/card/keymaps'
@@ -314,7 +313,7 @@ def test_0030_merge_info_json_cluecard():
     keyboard_info = {
         'keyboard_name': 'clueboard/card',
         'keyboard_folder': 'clueboard/card',
-        'maintainer': 'qmk'
+        'maintainer': 'qmk',
     }
     with open('qmk_firmware/keyboards/clueboard/info.json') as info_file:
         merged_keyboard_info = update_kb_redis.merge_info_json(info_file, keyboard_info)

@@ -4,6 +4,9 @@ class SparseList(list):
         if missing > 0:
             self.extend([None] * missing)
         list.__setitem__(self, index, value)
+
     def __getitem__(self, index):
-        try: return list.__getitem__(self, index)
-        except IndexError: return None
+        try:
+            return list.__getitem__(self, index)
+        except IndexError:
+            return None

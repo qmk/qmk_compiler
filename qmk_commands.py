@@ -9,7 +9,6 @@ from dhooks import Embed, Webhook
 import qmk_storage
 from qmk_errors import NoSuchKeyboardError
 
-
 CHIBIOS_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'qmk')
 CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
 CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'qmk')
@@ -24,13 +23,13 @@ QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware
 ZIP_EXCLUDES = {
     'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'),
     'chibios': ('chibios/.git/*'),
-    'chibios-contrib': ('chibios-contrib/.git/*')
+    'chibios-contrib': ('chibios-contrib/.git/*'),
 }
 
 severities = {
     'error': (':open_mouth:', DISCORD_WEBHOOK_ERROR_URL),
     'info': (':nerd_face:', DISCORD_WEBHOOK_INFO_URL),
-    'warning': (':upside_down_face:', DISCORD_WEBHOOK_WARNING_URL)
+    'warning': (':upside_down_face:', DISCORD_WEBHOOK_WARNING_URL),
 }
 
 

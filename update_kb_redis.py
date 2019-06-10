@@ -15,7 +15,7 @@ import qmk_redis
 from qmk_commands import checkout_qmk, memoize, git_hash
 
 debug = False
-default_key_entry = {'x':-1, 'y':-1, 'w':1}
+default_key_entry = {'x': -1, 'y': -1, 'w': 1}
 error_log = []
 
 # Regexes
@@ -160,7 +160,7 @@ def parse_config_h_file(file, config_h=None):
                 if len(line) == 2:
                     if line[1] in config_h:
                         if config_h[line[1]] is True:
-                            del(config_h[line[1]])
+                            del config_h[line[1]]
                         else:
                             config_h[line[1]] = False
                 else:
@@ -309,12 +309,11 @@ def extract_keymap(keymap_file):
             layer_index += 1
         layers[int(layer_num)] = layer.split(',')
 
-
     # Turn the layers dict into a properly ordered list.
     layer_list = []
     if layers:
         max_int = sorted(layers.keys())[-1]
-        for i in range(max_int+1):
+        for i in range(max_int + 1):
             layer_list.append(layers.get(i))
 
     return layout_macro, layer_list
@@ -325,15 +324,15 @@ def find_layouts(file):
     """Returns list of parsed layout macros found in the supplied file.
     """
     aliases = {}  # Populated with all `#define`s that aren't functions
-    writing_keymap=False
-    discovered_keymaps=[]
-    parsed_keymaps={}
-    current_keymap=[]
+    writing_keymap = False
+    discovered_keymaps = []
+    parsed_keymaps = {}
+    current_keymap = []
 
     for line in unicode_lines(file):
         if not writing_keymap:
             if '#define' in line and '(' in line and ('LAYOUT' in line or 'KEYMAP' in line):
-                writing_keymap=True
+                writing_keymap = True
             elif '#define' in line:
                 try:
                     _, pp_macro_name, pp_macro_text = line.strip().split(' ', 2)
@@ -342,16 +341,16 @@ def find_layouts(file):
                     continue
 
         if writing_keymap:
-            current_keymap.append(line.strip()+'\n')
+            current_keymap.append(line.strip() + '\n')
             if ')' in line:
-                writing_keymap=False
+                writing_keymap = False
                 discovered_keymaps.append(''.join(current_keymap))
-                current_keymap=[]
+                current_keymap = []
 
     for keymap in discovered_keymaps:
         # Clean-up the keymap text, extract the macro name, and end up with a list
         # of key entries.
-        keymap = keymap.replace('\\', '').replace(' ', '').replace('\t','').replace('#define', '')
+        keymap = keymap.replace('\\', '').replace(' ', '').replace('\t', '').replace('#define', '')
         macro_name, keymap = keymap.split('(', 1)
         keymap = keymap.split(')', 1)[0]
 
@@ -368,7 +367,7 @@ def find_layouts(file):
             parsed_keymap.extend([default_key(key) for key in row.split(',')])
         parsed_keymaps[macro_name] = {
             'key_count': len(parsed_keymap),
-            'layout': parsed_keymap
+            'layout': parsed_keymap,
         }
 
     for alias, text in aliases.items():
@@ -431,7 +430,7 @@ def merge_info_json(info_json, keyboard_info):
         return keyboard_info
 
     if not isinstance(info_json, dict):
-        log_error("%s is invalid! Should be a JSON dict object."% (info_fd.name))
+        log_error("%s is invalid! Should be a JSON dict object." % (info_fd.name))
         return keyboard_info
 
     for key in ('keyboard_name', 'manufacturer', 'identifier', 'url', 'maintainer', 'processor', 'bootloader', 'width', 'height'):
@@ -447,7 +446,7 @@ def merge_info_json(info_json, keyboard_info):
                         'keyboard': keyboard_info['keyboard_folder'],
                         'layout': layout_name,
                         'info_len': len(json_layout['layout']),
-                        'keymap_len': len(keyboard_info['layouts'][layout_name]['layout'])
+                        'keymap_len': len(keyboard_info['layouts'][layout_name]['layout']),
                     }
                     log_error('%(keyboard)s: %(layout)s: Number of elements in info.json does not match! info.json:%(info_len)s != %(layout)s:%(keymap_len)s' % log_args)
                 else:
@@ -486,7 +485,7 @@ def write_keymap_redis(keyboard, keymap_name, keymap_folder, layers, layout_macr
         'keymap_name': keymap_name,
         'keymap_folder': keymap_folder,
         'layers': layers,
-        'layout_macro': layout_macro
+        'layout_macro': layout_macro,
     }
 
     readme = '%s/%s/readme.md' % (keymap_folder, keymap_name)
@@ -614,7 +613,7 @@ def process_keyboard(keyboard, usb_list, kb_list, kb_entries):
     keyboard_info['identifier'] = ':'.join((
         keyboard_info.get('vendor_id', 'unknown'),
         keyboard_info.get('product_id', 'unknown'),
-        keyboard_info.get('device_ver', 'unknown')
+        keyboard_info.get('device_ver', 'unknown'),
     ))
 
     # Store the keyboard's readme in redis
@@ -638,7 +637,7 @@ def update_kb_redis():
     """Called to update qmk_firmware.
     """
     # Clean up the environment and fetch the latest source
-    del(error_log[:])
+    del error_log[:]
     if not debug:
         if exists('update_kb_redis'):
             rmtree('update_kb_redis')
