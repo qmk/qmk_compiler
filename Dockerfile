@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 WORKDIR /qmk_compiler
 COPY . /qmk_compiler
-RUN pip3 install -r requirements.txt
+RUN pip3 install --upgrade wheel && pip3 install -r requirements.txt
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 CMD ./bin/start_worker
