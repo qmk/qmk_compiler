@@ -1,0 +1,14 @@
+os: linux
+dist: trusty
+sudo: required
+group: edge
+language: c
+branches:
+  except:
+    - /^.*-automated-build$/
+    - /^[0-9]+\.[0-9]+\.[0-9]+/
+services:
+  - docker
+script:
+  - git rev-parse --short HEAD
+  - docker run --rm -w /qmk_compiler/ -v "$PWD":/qmk_compiler --user $(id -u)$(id -g) qmkfm/base_container nose2
