@@ -11,5 +11,7 @@ services:
   - docker
 script:
   - git rev-parse --short HEAD
+  - docker run -p 9000:9000 minio/minio
+  - docker run -p 6379:6379 redis:4.0
   - docker build -t qmk_compiler .
   - docker run qmk_compiler nose2
