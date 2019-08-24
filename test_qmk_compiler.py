@@ -16,8 +16,6 @@ import re
 import shutil
 from tempfile import mkstemp
 
-import pytest
-
 import update_kb_redis
 import qmk_commands
 
