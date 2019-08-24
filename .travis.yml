@@ -11,7 +11,7 @@ services:
   - docker
 script:
   - git rev-parse --short HEAD
-  - docker run -p 9000:9000 minio/minio
-  - docker run -p 6379:6379 redis:4.0
+  - docker run -p 9000:9000 -e MINIO_ACCESS_KEY=minio_dev -e MINIO_SECRET_KEY=minio_dev_secret -e S3_ACCESS_KEY=minio_dev -e S3_SECRET_KEY=minio_dev_secret minio/minio server minio_data &
+  - docker run -p 6379:6379 redis:4.0 &
   - docker build -t qmk_compiler .
   - docker run qmk_compiler nose2
