@@ -16,5 +16,5 @@ script:
   - docker run --name redis --net qmk_compiler_net redis:4.0 &
   - docker build -t qmk_compiler .
   - docker run --net qmk_compiler_net -e REDIS_HOST=redis -e S3_HOST=http://minio:9000 qmk_compiler nose2
-  - while kill %; sleep 1; done # Kill the running minio and redis containers
+  - while kill %; do sleep 1; done # Kill the running minio and redis containers
   - docker network rm qmk_compiler_net
