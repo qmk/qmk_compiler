@@ -15,6 +15,6 @@ script:
   - docker run --name minio --net qmk_compiler_net -e MINIO_ACCESS_KEY=minio_dev -e MINIO_SECRET_KEY=minio_dev_secret -e S3_ACCESS_KEY=minio_dev -e S3_SECRET_KEY=minio_dev_secret minio/minio server minio_data &
   - docker run --name redis --net qmk_compiler_net redis:4.0 &
   - docker build -t qmk_compiler .
-  - docker run -e --net qmk_compiler_net REDIS_HOST=redis -e S3_HOST=http://minio:9000 qmk_compiler nose2
+  - docker run --net qmk_compiler_net -e REDIS_HOST=redis -e S3_HOST=http://minio:9000 qmk_compiler nose2
   - while kill %; sleep 1; done # Kill the running minio and redis containers
   - docker network rm qmk_compiler_net
