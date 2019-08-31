@@ -186,7 +186,8 @@ def compile_firmware(keyboard, keymap, layout, layers):
 
         if kb_data['processor_type'] == 'arm':
             checkout_chibios()
-        elif kb_data['processor_type'] == 'avr':
+
+        if kb_data['processor_type'] in ['avr', 'arm']:
             checkout_lufa()
 
         # Build the keyboard firmware
