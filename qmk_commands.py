@@ -18,6 +18,8 @@ DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL')
 DISCORD_WEBHOOK_INFO_URL = os.environ.get('DISCORD_WEBHOOK_INFO_URL', DISCORD_WEBHOOK_URL)
 DISCORD_WEBHOOK_WARNING_URL = os.environ.get('DISCORD_WEBHOOK_WARNING_URL', DISCORD_WEBHOOK_URL)
 DISCORD_WEBHOOK_ERROR_URL = os.environ.get('DISCORD_WEBHOOK_ERROR_URL', DISCORD_WEBHOOK_URL)
+LUFA_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'master')
+LUFA_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/lufa')
 QMK_GIT_BRANCH = os.environ.get('GIT_BRANCH', 'master')
 QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
 ZIP_EXCLUDES = {
@@ -121,6 +123,20 @@ def checkout_chibios():
 
         if not fetch_source(submodule):
             git_clone(git_url, git_branch)
+
+    os.chdir('../..')
+
+
+def checkout_lufa():
+    """Do whatever is needed to get the latest version of lufa
+    """
+    os.chdir('qmk_firmware/lib')
+
+    if os.path.exists('lufa'):
+        rmtree('lufa')
+
+    if not fetch_source('lufa'):
+        git_clone(LUFA_GIT_URL, LUFA_GIT_BRANCH)
 
     os.chdir('../..')
 

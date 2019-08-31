@@ -11,7 +11,7 @@ from rq.decorators import job
 
 import qmk_redis
 import qmk_storage
-from qmk_commands import checkout_qmk, find_firmware_file, find_keymap_path, store_source, checkout_chibios, store_keymap
+from qmk_commands import checkout_qmk, find_firmware_file, find_keymap_path, store_source, checkout_chibios, checkout_lufa, store_keymap
 from qmk_redis import redis
 
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
@@ -186,6 +186,8 @@ def compile_firmware(keyboard, keymap, layout, layers):
 
         if kb_data['processor_type'] == 'arm':
             checkout_chibios()
+        elif kb_data['processor_type'] == 'avr':
+            checkout_lufa()
 
         # Build the keyboard firmware
         create_keymap(result, layers)
