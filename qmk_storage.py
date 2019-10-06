@@ -110,9 +110,9 @@ def save_fd(fd, filename):
     else:
         logging.debug('Writing to %s/%s.', FILESYSTEM_PATH, filename)
         if FILESYSTEM_PATH[0] == '/':
-            file_path = '%s/%s' % (FILESYSTEM_PATH, filename)
+            file_path = '{}/{}'.format(FILESYSTEM_PATH, filename)
         else:
-            file_path = '../%s/%s' % (FILESYSTEM_PATH, filename)
+            file_path = '../{}/{}'.format(FILESYSTEM_PATH, filename)
         mkdir(dirname(file_path))
         copyfileobj(fd, open(file_path, 'w'))
 
@@ -126,9 +126,9 @@ def save_file(local_filename, remote_filename):
     else:
         logging.debug('Writing to %s/%s.', FILESYSTEM_PATH, remote_filename)
         if FILESYSTEM_PATH[0] == '/':
-            file_path = '%s/%s' % (FILESYSTEM_PATH, remote_filename)
+            file_path = '{}/{}'.format(FILESYSTEM_PATH, remote_filename)
         else:
-            file_path = '../%s/%s' % (FILESYSTEM_PATH, remote_filename)
+            file_path = '../{}/{}'.format(FILESYSTEM_PATH, remote_filename)
         mkdir(dirname(file_path))
         copyfile(local_filename, remote_filename)
 
@@ -148,9 +148,9 @@ def put(filename, value):
     else:
         logging.debug('Writing to %s.', FILESYSTEM_PATH, filename)
         if FILESYSTEM_PATH[0] == '/':
-            file_path = '%s/%s' % (FILESYSTEM_PATH, filename)
+            file_path = '{}/{}'.format(FILESYSTEM_PATH, filename)
         else:
-            file_path = '../%s/%s' % (FILESYSTEM_PATH, filename)
+            file_path = '../{}/{}'.format(FILESYSTEM_PATH, filename)
         mkdir(dirname(file_path))
         open(file_path, 'w').write(value)
 

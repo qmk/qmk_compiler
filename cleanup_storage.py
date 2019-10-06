@@ -24,7 +24,7 @@ def cleanup_storage():
             file_age = now - file['LastModified']
             if 'qmk_api_tasks_test_compile' in file['Key'] or file_age > storage_time:
                 i += 1
-                print('Deleting #%s: %s (Age: %s)' % (i, file['Key'], file_age))
+                print('Deleting #{}: {} (Age: {})'.format(i, file['Key'], file_age))
                 delete(file['Key'])
 
     return True

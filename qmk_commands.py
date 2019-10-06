@@ -157,7 +157,7 @@ def git_clone(git_url=QMK_GIT_URL, git_branch=QMK_GIT_BRANCH):
 
     except CalledProcessError as build_error:
         repo_cloned = False
-        logging.error("Could not clone %s: %s (returncode: %s)" % (repo, build_error.output, build_error.returncode))
+        logging.error("Could not clone {}: {} (returncode: {})".format(repo, build_error.output, build_error.returncode))
         logging.exception(build_error)
 
     os.chdir('..')
@@ -201,7 +201,7 @@ def fetch_source(repo):
 
 def find_keymap_path(keyboard, keymap):
     for directory in ['.', '..', '../..', '../../..', '../../../..', '../../../../..']:
-        basepath = os.path.normpath('qmk_firmware/keyboards/%s/%s/keymaps' % (keyboard, directory))
+        basepath = os.path.normpath('qmk_firmware/keyboards/{}/{}/keymaps'.format(keyboard, directory))
         if os.path.exists(basepath):
             return '/'.join((basepath, keymap))
 

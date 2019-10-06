@@ -51,7 +51,7 @@ def unicode_text(filename):
         text = UnicodeDammit(fd.read())
 
     if text.contains_replacement_characters:
-        log_warning('%s: Could not determine file encoding, some characters were replaced.' % (filename,))
+        log_warning('{}: Could not determine file encoding, some characters were replaced.'.format(filename))
 
     return text.unicode_markup or ''
 
@@ -86,8 +86,8 @@ def find_all_layouts(keyboard):
     current_path = 'qmk_firmware/keyboards/'
     for directory in keyboard_path.split('/'):
         current_path += directory + '/'
-        if exists('%s/%s.h' % (current_path, directory)):
-            layouts.update(find_layouts('%s/%s.h' % (current_path, directory)))
+        if exists('{}/{}.h'.format(current_path, directory)):
+            layouts.update(find_layouts('{}/{}.h'.format(current_path, directory)))
 
     if not layouts:
         # If we didn't find any layouts above we widen our search. This is error
@@ -110,7 +110,7 @@ def find_all_layouts(keyboard):
                 supported_layouts.remove(layout_name)
 
         if supported_layouts:
-            log_error('%s: Missing layout pp macro for %s' % (keyboard, supported_layouts))
+            log_error('{}: Missing layout pp macro for {}'.format(keyboard, supported_layouts))
 
     return layouts
 
@@ -123,7 +123,7 @@ def parse_config_h(keyboard):
 
     if 'DEFAULT_FOLDER' in rules_mk:
         keyboard = rules_mk['DEFAULT_FOLDER']
-        config_h = parse_config_h_file('qmk_firmware/keyboards/%s/%s/config.h' % (keyboard, rules_mk['DEFAULT_FOLDER']), config_h)
+        config_h = parse_config_h_file('qmk_firmware/keyboards/{}/{}/config.h'.format(keyboard, rules_mk['DEFAULT_FOLDER']), config_h)
 
     return config_h
 
@@ -150,7 +150,7 @@ def parse_config_h_file(file, config_h=None):
 
             if line[0] == '#define':
                 if len(line) == 1:
-                    log_error('%s: Incomplete #define! On or around line %s' % (file, linenum))
+                    log_error('{}: Incomplete #define! On or around line {}'.format(file, linenum))
                 elif len(line) == 2:
                     config_h[line[1]] = True
                 else:
@@ -164,7 +164,7 @@ def parse_config_h_file(file, config_h=None):
                         else:
                             config_h[line[1]] = False
                 else:
-                    log_error('%s: Incomplete #undef! On or around line %s' % (file, linenum))
+                    log_error('{}: Incomplete #undef! On or around line {}'.format(file, linenum))
 
     return config_h
 
@@ -176,7 +176,7 @@ def parse_rules_mk(keyboard):
 
     if 'DEFAULT_FOLDER' in rules_mk:
         keyboard = rules_mk['DEFAULT_FOLDER']
-        rules_mk = parse_rules_mk_file('qmk_firmware/keyboards/%s/%s/rules.mk' % (keyboard, rules_mk['DEFAULT_FOLDER']), rules_mk)
+        rules_mk = parse_rules_mk_file('qmk_firmware/keyboards/{}/{}/rules.mk'.format(keyboard, rules_mk['DEFAULT_FOLDER']), rules_mk)
 
     return rules_mk
 
@@ -411,7 +411,7 @@ def find_keymaps(keyboard):
 
     for keymap_folder in keymaps:
         for keymap in listdir(keymap_folder):
-            keymap_file = '%s/%s/keymap.c' % (keymap_folder, keymap)
+            keymap_file = '{}/{}/keymap.c'.format(keymap_folder, keymap)
             if exists(keymap_file):
                 layout_macro, layers = extract_keymap(keymap_file)
                 # Skip any layout macro that ends with '_kc', they will not compile
@@ -426,7 +426,7 @@ def merge_info_json(info_json, keyboard_info):
         with open(info_json) as info_fd:
             info_json = json.load(info_fd)
     except Exception as e:
-        log_error("Could not parse %s as JSON: %s" % (info_fd.name, e))
+        log_error("Could not parse {} as JSON: {}".format(info_fd.name, e))
         return keyboard_info
 
     if not isinstance(info_json, dict):
@@ -488,11 +488,11 @@ def write_keymap_redis(keyboard, keymap_name, keymap_folder, layers, layout_macr
         'layout_macro': layout_macro,
     }
 
-    readme = '%s/%s/readme.md' % (keymap_folder, keymap_name)
+    readme = '{}/{}/readme.md'.format(keymap_folder, keymap_name)
     readme_text = unicode_text(readme) if exists(readme) else '%s does not exist.' % readme
 
-    qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
-    qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), readme_text)
+    qmk_redis.set('qmk_api_kb_{}_keymap_{}'.format(keyboard, keymap_name), keymap_blob)
+    qmk_redis.set('qmk_api_kb_{}_keymap_{}_readme'.format(keyboard, keymap_name), readme_text)
 
 
 def arm_processor_rules(keyboard_info, rules_mk):
@@ -606,7 +606,7 @@ def process_keyboard(keyboard, usb_list, kb_list, kb_entries):
     elif mcu in AVR_PROCESSORS:
         avr_processor_rules(keyboard_info, rules_mk)
     else:
-        log_warning("%s: Unknown MCU: %s" % (keyboard, mcu))
+        log_warning("{}: Unknown MCU: {}".format(keyboard, mcu))
         unknown_processor_rules(keyboard_info, rules_mk)
 
     # Used to identify keyboards in the redis key qmk_api_usb_list.
@@ -659,7 +659,7 @@ def update_kb_redis():
 
         except Exception as e:
             # Uncaught exception handler. Ideally this is never hit.
-            log_error('Uncaught exception while processing keyboard %s! %s: %s' % (keyboard, e.__class__.__name__, str(e)))
+            log_error('Uncaught exception while processing keyboard {}! {}: {}'.format(keyboard, e.__class__.__name__, str(e)))
             logging.exception(e)
 
     # Update the global redis information

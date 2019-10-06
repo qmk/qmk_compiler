@@ -37,7 +37,7 @@ def generate_keymap_c(result, layers):
         if layer_num != 0:
             layer_txt[-1] = layer_txt[-1] + ','
         layer_keys = ', '.join(layer)
-        layer_txt.append('\t[%s] = %s(%s)' % (layer_num, result['layout'], layer_keys))
+        layer_txt.append('\t[{}] = {}({})'.format(layer_num, result['layout'], layer_keys))
 
     keymap = '\n'.join(layer_txt)
     keymap_c = keymap_c.replace('__KEYMAP_GOES_HERE__', keymap)
@@ -79,7 +79,7 @@ def store_firmware_metadata(job, result):
         'result': result
     })
     json_obj = BytesIO(json_data.encode('utf-8'))
-    filename = '%s/%s.json' % (result['id'], result['id'])
+    filename = '{}/{}.json'.format(result['id'], result['id'])
 
     qmk_storage.save_fd(json_obj, filename)
 
@@ -174,8 +174,8 @@ def compile_firmware(keyboard, keymap, layout, layers):
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
         for pathname in (
-            'qmk_firmware/keyboards/%s/keymaps/%s' % (keyboard, keymap),
-            'qmk_firmware/keyboards/%s/../keymaps/%s' % (keyboard, keymap),
+            'qmk_firmware/keyboards/{}/keymaps/{}'.format(keyboard, keymap),
+            'qmk_firmware/keyboards/{}/../keymaps/{}'.format(keyboard, keymap),
         ):
             if path.exists(pathname):
                 logging.error('Name collision! %s already exists! This should not happen!', pathname)
