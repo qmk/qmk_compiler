@@ -5,6 +5,7 @@ from os import chdir, mkdir, environ, path, remove
 from subprocess import check_output, CalledProcessError, STDOUT
 from time import strftime
 from traceback import format_exc
+from itertools import chain
 
 from rq import get_current_job
 from rq.decorators import job
@@ -24,6 +25,29 @@ __KEYMAP_GOES_HERE__
 """
 
 
+# used to turn out features based on presence of codes in keymap
+def specialKeys(kc):
+    switcher = {
+        'KC_MS_U': 'MOUSE_ENABLE',
+        'KC_MS_D': 'MOUSE_ENABLE',
+        'KC_MS_L': 'MOUSE_ENABLE',
+        'KC_MS_R': 'MOUSE_ENABLE',
+        'KC_BTN1': 'MOUSE_ENABLE',
+        'KC_BTN2': 'MOUSE_ENABLE',
+        'KC_BTN3': 'MOUSE_ENABLE',
+        'KC_BTN4': 'MOUSE_ENABLE',
+        'KC_BTN5': 'MOUSE_ENABLE',
+        'KC_WH_U': 'MOUSE_ENABLE',
+        'KC_WH_D': 'MOUSE_ENABLE',
+        'KC_WH_L': 'MOUSE_ENABLE',
+        'KC_WH_R': 'MOUSE_ENABLE',
+        'KC_ACL0': 'MOUSE_ENABLE',
+        'KC_ALC1': 'MOUSE_ENABLE',
+        'KC_ACL2': 'MOUSE_ENABLE'
+    }
+    return switcher.get(kc, "IGNORE")
+
+
 # Local Helper Functions
 def generate_keymap_c(result, layers):
     template_name = 'keyboards/%(keyboard)s/templates/keymap.c' % result
@@ -33,7 +57,15 @@ def generate_keymap_c(result, layers):
         keymap_c = DEFAULT_KEYMAP_C
 
     layer_txt = []
+    # default to no to save some firmware space
+    special = {'MOUSE_ENABLE': 'no'}
     for layer_num, layer in enumerate(layers):
+        # check each key for special keys of interest
+        for key_pos, key in enumerate(layer):
+            ret = specialKeys(key)
+            if (ret != 'IGNORE'):
+                special[ret] = 'yes'
+
         if layer_num != 0:
             layer_txt[-1] = layer_txt[-1] + ','
         layer_keys = ', '.join(layer)
@@ -41,6 +73,8 @@ def generate_keymap_c(result, layers):
 
     keymap = '\n'.join(layer_txt)
     keymap_c = keymap_c.replace('__KEYMAP_GOES_HERE__', keymap)
+
+    result['specialKeys'] = special
 
     return keymap_c
 
@@ -192,6 +226,14 @@ def compile_firmware(keyboard, keymap, layout, layers):
 
         # Build the keyboard firmware
         create_keymap(result, layers)
+
+        # Turn on Detected Features
+        if len(result['specialKeys']) > 0:
+            options = ''
+            for value, key in enumerate(result['specialKeys']):
+                options += '%s=%s ' % (key, result['specialKeys'][key])
+            result['command'] = ['make', options, 'COLOR=false', ':'.join((keyboard, keymap))]
+
         store_firmware_source(result)
         remove(result['source_archive'])
         compile_keymap(job, result)
