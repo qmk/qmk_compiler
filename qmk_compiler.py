@@ -5,7 +5,6 @@ from os import chdir, mkdir, environ, path, remove
 from subprocess import check_output, CalledProcessError, STDOUT
 from time import strftime
 from traceback import format_exc
-from itertools import chain
 
 from rq import get_current_job
 from rq.decorators import job
