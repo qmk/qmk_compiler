@@ -2,6 +2,7 @@ FROM qmkfm/base_container
 MAINTAINER Zach White <skullydazed@gmail.com>
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
+    clang \
     redis-tools && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /qmk_compiler
