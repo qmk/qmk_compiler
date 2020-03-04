@@ -16,7 +16,7 @@ rq = Queue(connection=redis)
 def enqueue(func, timeout=REDIS_TIMEOUT, *args, **kwargs):
     """Insert a job into RQ.
     """
-    return rq.enqueue(func, timeout=timeout, *args, **kwargs)
+    return rq.enqueue(func, job_timeout=timeout, *args, **kwargs)
 
 
 def get(key):
