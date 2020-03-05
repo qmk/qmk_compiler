@@ -49,20 +49,19 @@ def discord_msg(severity, message, include_icon=True):
     global DISCORD_WARNING_SENT
 
     severity_icon, discord_url = severities[severity]
+    if include_icon:
+        message = severity_icon + ' ' + message
 
     if not discord_url or discord_url == 'none':
         if not DISCORD_WARNING_SENT:
             DISCORD_WARNING_SENT = True
             logging.warning('DISCORD_WEBHOOK_URL not configured, will not send messages to discord.')
+        logging.info('Discord message not sent: %s', message)
         return
 
     try:
         discord = Webhook(discord_url)
-
-        if include_icon:
-            discord.send(severity_icon + ' ' + message)
-        else:
-            discord.send(message)
+        discord.send(message)
     except Exception as e:
         logging.error('Unhandled exception when sending discord message:')
         logging.exception(e)
@@ -79,6 +78,7 @@ def discord_embed(severity, source, title, description=None, **fields):
         if not DISCORD_WARNING_SENT:
             DISCORD_WARNING_SENT = True
             logging.warning('DISCORD_WEBHOOK_URL not configured, will not send messages to discord.')
+        logging.info('Discord embed not sent: %s: %s: %s', title, description, fields)
         return
 
     try:
