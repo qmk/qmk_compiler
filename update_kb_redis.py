@@ -398,27 +398,6 @@ def find_info_json(keyboard):
     return files
 
 
-@memoize
-def find_keymaps(keyboard):
-    """Yields the keymaps for a particular keyboard.
-    """
-    keymaps_path = 'qmk_firmware/keyboards/%s%s/keymaps'
-    keymaps = []
-
-    for path in ('/../../../..', '/../../..', '/../..', '/..', ''):
-        if (exists(keymaps_path % (keyboard, path))):
-            keymaps.append(keymaps_path % (keyboard, path))
-
-    for keymap_folder in keymaps:
-        for keymap in listdir(keymap_folder):
-            keymap_file = '%s/%s/keymap.c' % (keymap_folder, keymap)
-            if exists(keymap_file):
-                layout_macro, layers = extract_keymap(keymap_file)
-                # Skip any layout macro that ends with '_kc', they will not compile
-                if not layout_macro.startswith('LAYOUT_kc'):
-                    yield (keymap, keymap_folder, layout_macro, layers)
-
-
 def merge_info_json(info_json, keyboard_info):
     """Merge the parsed keyboard_info data with the parsed info.json and return the full JSON that will ultimately be stored in redis.
     """
@@ -475,24 +454,6 @@ def build_keyboard_info(keyboard):
         'maintainer': 'qmk',
         'readme': False,
     }
-
-
-def write_keymap_redis(keyboard, keymap_name, keymap_folder, layers, layout_macro):
-    """Write a keymap to redis.
-    """
-    keymap_blob = {
-        'keyboard_name': keyboard,
-        'keymap_name': keymap_name,
-        'keymap_folder': keymap_folder,
-        'layers': layers,
-        'layout_macro': layout_macro,
-    }
-
-    readme = '%s/%s/readme.md' % (keymap_folder, keymap_name)
-    readme_text = unicode_text(readme) if exists(readme) else '%s does not exist.' % readme
-
-    qmk_redis.set('qmk_api_kb_%s_keymap_%s' % (keyboard, keymap_name), keymap_blob)
-    qmk_redis.set('qmk_api_kb_%s_keymap_%s_readme' % (keyboard, keymap_name), readme_text)
 
 
 def arm_processor_rules(keyboard_info, rules_mk):
@@ -587,11 +548,6 @@ def process_keyboard(keyboard, usb_list, kb_list, kb_entries):
     for info_json_filename in find_info_json(keyboard):
         # Merge info.json files into one.
         keyboard_info = merge_info_json(info_json_filename, keyboard_info)
-
-    # Iterate through all the possible keymaps to build keymap jsons.
-    for keymap_name, keymap_folder, layout_macro, layers in find_keymaps(keyboard):
-        keyboard_info['keymaps'].append(keymap_name)
-        write_keymap_redis(keyboard, keymap_name, keymap_folder, layers, layout_macro)
 
     # Pull some keyboard information from existing rules.mk and config.h files
     config_h = parse_config_h(keyboard)
