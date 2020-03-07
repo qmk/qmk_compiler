@@ -19,7 +19,7 @@ default_key_entry = {'x': -1, 'y': -1, 'w': 1}
 error_log = []
 
 # Regexes
-enum_re = re.compile(r'enum[^{]*{[^}]')
+enum_re = re.compile(r'enum[^{]*{[^}]*')
 keymap_re = re.compile(r'constuint[0-9]*_t[PROGMEM]*keymaps[^;]*')
 layers_re = re.compile(r'\[[^\]]*]=[0-9A-Z_]*\([^[]*\)')
 layout_macro_re = re.compile(r']=(LAYOUT[0-9a-z_]*)\(')
@@ -235,6 +235,8 @@ def preprocess_source(file):
 
 def populate_enums(keymap_text, keymap):
     """Pull the enums from the file and assign them (hopefully) correct numbers.
+
+    Returns a copy of keymap with the enums replaced with numbers.
     """
     replacements = {}
     for enum in enum_re.findall(keymap_text):
@@ -245,7 +247,7 @@ def populate_enums(keymap_text, keymap):
             if '=' in define:
                 define, new_index = define.split('=')
 
-                if new_index == 'SAFE_RANGE':
+                if new_index.strip() == 'SAFE_RANGE':
                     # We should skip keycode enums
                     break
 
@@ -405,7 +407,7 @@ def merge_info_json(info_json, keyboard_info):
         with open(info_json) as info_fd:
             info_json = json.load(info_fd)
     except Exception as e:
-        log_error("Could not parse %s as JSON: %s" % (info_fd.name, e))
+        log_error("Could not parse %s as JSON: %s" % (info_json, e))
         return keyboard_info
 
     if not isinstance(info_json, dict):
@@ -624,7 +626,7 @@ def update_kb_redis():
     qmk_redis.set('qmk_api_usb_list', usb_list)
     qmk_redis.set('qmk_api_last_updated', {'git_hash': git_hash(), 'last_updated': strftime('%Y-%m-%d %H:%M:%S %Z')})
     qmk_redis.set('qmk_api_update_error_log', error_log)
-    print('*** All keys successfully written to redis! Total size:', len(json.dumps(kb_all)))
+    logging.info('*** All keys successfully written to redis! Total size:', len(json.dumps(kb_all)))
 
     chdir('..')
 

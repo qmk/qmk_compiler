@@ -3,7 +3,7 @@
 #
 # https://hynek.me/articles/sharing-your-labor-of-love-pypi-quick-and-dirty/
 import os
-from setuptools import setup, find_packages, Command
+from setuptools import setup
 
 
 def read(*paths):

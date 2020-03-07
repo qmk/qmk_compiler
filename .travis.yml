@@ -17,4 +17,4 @@ before_install:
 script:
   - git rev-parse --short HEAD
   - docker build -t qmk_compiler .
-  - docker run --net qmk_compiler_net -e REDIS_HOST=redis -e S3_HOST=http://minio:9000 qmk_compiler nose2
+  - docker run --net qmk_compiler_net -e REDIS_HOST=redis -e S3_HOST=http://minio:9000 qmk_compiler pytest
