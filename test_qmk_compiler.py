@@ -255,7 +255,7 @@ def test_0025_extract_layouts_cluecard():
     keymap_file = 'qmk_firmware/keyboards/clueboard/card/keymaps/default/keymap.c'
     keymap_text = update_kb_redis.preprocess_source(keymap_file)
     layouts = update_kb_redis.extract_layouts(keymap_text, keymap_file)
-    assert layouts == 'constuint16_tPROGMEMkeymaps[][MATRIX_ROWS][MATRIX_COLS]={[0]=LAYOUT(RGB_TOG,RGB_SAI,RGB_VAI,RGB_HUD,RGB_HUI,RGB_MOD,RGB_SAD,RGB_VAD,BL_STEP,F(0),F(1),F(2))}'
+    assert layouts == 'constuint16_tPROGMEMkeymaps[][MATRIX_ROWS][MATRIX_COLS]={[0]=LAYOUT(RGB_TOG,RGB_SAI,RGB_VAI,RGB_HUD,RGB_HUI,RGB_MOD,RGB_SAD,RGB_VAD,BL_STEP,SONG_SU,SONG_SC,SONG_GB)}'
 
 
 def test_0026_extract_keymap_cluecard():
@@ -264,7 +264,7 @@ def test_0026_extract_keymap_cluecard():
     keymap_file = 'qmk_firmware/keyboards/clueboard/card/keymaps/default/keymap.c'
     layout_macro, layer_list = update_kb_redis.extract_keymap(keymap_file)
     assert layout_macro == 'LAYOUT'
-    assert layer_list == [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'F(0)', 'F(1)', 'F(2)']]
+    assert layer_list == [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'SONG_SU', 'SONG_SC', 'SONG_GB']]
 
 
 def test_0027_find_layouts_cluecard():
@@ -299,7 +299,7 @@ def test_0029_find_keymaps_cluecard():
     """
     keymap_names = ['default', 'rgb_effects']
     keymaps = [
-        [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'F(0)',
+        [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'SONG_SU',
           'SONG_SC', 'SONG_GB']],
         [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'KC_NO',
           'KC_NO', 'KC_NO']]
