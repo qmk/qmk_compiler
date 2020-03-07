@@ -187,8 +187,10 @@ def test_0021_parse_rules_mk_file_cluecard():
     assert rules_mk == {
         'ARCH': 'AVR8',
         'AUDIO_ENABLE': 'yes',
+        'BACKLIGHT_DRIVER': 'custom',
         'BACKLIGHT_ENABLE': 'yes',
         'BLUETOOTH_ENABLE': 'no',
+        'BOOTLOADER': 'atmel-dfu',
         'BOOTMAGIC_ENABLE': 'no',
         'COMMAND_ENABLE': 'yes',
         'CONSOLE_ENABLE': 'yes',
