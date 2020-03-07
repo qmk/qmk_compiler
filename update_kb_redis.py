@@ -469,12 +469,14 @@ def arm_processor_rules(keyboard_info, rules_mk):
             keyboard_info['bootloader'] = 'stm32-dfu'
         elif keyboard_info.get('manufacturer') == 'Input Club':
             keyboard_info['bootloader'] = 'kiibohd-dfu'
+    keyboard_info['protocol'] = 'ChibiOS'
     if 'STM32' in keyboard_info['processor']:
         keyboard_info['platform'] = 'STM32'
     elif 'MCU_SERIES' in rules_mk:
         keyboard_info['platform'] = rules_mk['MCU_SERIES']
     elif 'ARM_ATSAM' in rules_mk:
         keyboard_info['platform'] = 'ARM_ATSAM'
+        keyboard_info['protocol'] = 'ATSAM'
 
 
 def avr_processor_rules(keyboard_info, rules_mk):
@@ -484,6 +486,10 @@ def avr_processor_rules(keyboard_info, rules_mk):
     keyboard_info['bootloader'] = rules_mk['BOOTLOADER'] if 'BOOTLOADER' in rules_mk else 'atmel-dfu'
     keyboard_info['platform'] = rules_mk['ARCH'] if 'ARCH' in rules_mk else 'unknown'
     keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
+    if rules_mk.get('PROTOCOL') == 'VUSB':
+        keyboard_info['protocol'] = 'V-USB'
+    else:
+        keyboard_info['protocol'] = 'LUFA'
 
 
 def unknown_processor_rules(keyboard_info, rules_mk):
@@ -493,6 +499,7 @@ def unknown_processor_rules(keyboard_info, rules_mk):
     keyboard_info['platform'] = 'unknown'
     keyboard_info['processor'] = 'unknown'
     keyboard_info['processor_type'] = 'unknown'
+    keyboard_info['protocol'] = 'unknown'
 
 
 def store_keyboard_readme(keyboard_info):

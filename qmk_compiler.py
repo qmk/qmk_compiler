@@ -132,11 +132,10 @@ def compile_firmware(keyboard, keymap, layout, layers):
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
         # If this keyboard needs a submodule check it out
-        if kb_data['processor_type'] == 'arm':
-            checkout_chibios()
-
-        if kb_data['processor_type'] in ['avr', 'arm']:
+        if kb_data['protocol'] in ['ChibiOS', 'LUFA']:
             checkout_lufa()
+            if kb_data['protocol'] == 'ChibiOS':
+                checkout_chibios()
 
         # Write the keymap file
         with open(path.join('qmk_firmware', keymap_json_file), 'w') as fd:

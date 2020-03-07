@@ -16,19 +16,21 @@ if 'GIT_BRANCH' in os.environ:
         if key not in os.environ:
             os.environ[key] = os.environ['GIT_BRANCH']
 
-CHIBIOS_GIT_BRANCH = os.environ.get('CHIBIOS_GIT_BRANCH', 'qmk')
-CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
-CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('CHIBIOS_CONTRIB_GIT_BRANCH', 'qmk')
-CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
 DISCORD_WARNING_SENT = False
 DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL')
 DISCORD_WEBHOOK_INFO_URL = os.environ.get('DISCORD_WEBHOOK_INFO_URL', DISCORD_WEBHOOK_URL)
 DISCORD_WEBHOOK_WARNING_URL = os.environ.get('DISCORD_WEBHOOK_WARNING_URL', DISCORD_WEBHOOK_URL)
 DISCORD_WEBHOOK_ERROR_URL = os.environ.get('DISCORD_WEBHOOK_ERROR_URL', DISCORD_WEBHOOK_URL)
-LUFA_GIT_BRANCH = os.environ.get('LUFA_GIT_BRANCH', 'master')
-LUFA_GIT_URL = os.environ.get('LUFA_GIT_URL', 'https://github.com/qmk/lufa')
+
 QMK_GIT_BRANCH = os.environ.get('QMK_GIT_BRANCH', 'master')
 QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
+CHIBIOS_GIT_BRANCH = os.environ.get('CHIBIOS_GIT_BRANCH', 'qmk')
+CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
+CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('CHIBIOS_CONTRIB_GIT_BRANCH', 'qmk')
+CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
+LUFA_GIT_BRANCH = os.environ.get('LUFA_GIT_BRANCH', 'master')
+LUFA_GIT_URL = os.environ.get('LUFA_GIT_URL', 'https://github.com/qmk/lufa')
+
 ZIP_EXCLUDES = {
     'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'),
     'chibios': ('chibios/.git/*'),
@@ -117,36 +119,31 @@ def checkout_qmk(skip_cache=False, require_cache=False):
         git_clone(QMK_GIT_URL, QMK_GIT_BRANCH)
 
 
+def checkout_submodule(name, url, branch):
+    """Clone a submodule to the lib directory.
+    """
+    os.chdir('qmk_firmware/lib')
+
+    if os.path.exists(name):
+        rmtree(name)
+
+    if not fetch_source(name):
+        git_clone(url, branch)
+
+    os.chdir('../..')
+
+
 def checkout_chibios():
     """Do whatever is needed to get the latest version of ChibiOS and ChibiOS-Contrib.
     """
-    chibios = ('chibios', CHIBIOS_GIT_URL, CHIBIOS_GIT_BRANCH)
-    chibios_contrib = ('chibios-contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
-
-    os.chdir('qmk_firmware/lib')
-
-    for submodule, git_url, git_branch in chibios, chibios_contrib:
-        if os.path.exists(submodule):
-            rmtree(submodule)
-
-        if not fetch_source(submodule):
-            git_clone(git_url, git_branch)
-
-    os.chdir('../..')
+    checkout_submodule('chibios', CHIBIOS_GIT_URL, CHIBIOS_GIT_BRANCH)
+    checkout_submodule('chibios-contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
 
 
 def checkout_lufa():
-    """Do whatever is needed to get the latest version of lufa
+    """Do whatever is needed to get the latest version of LUFA.
     """
-    os.chdir('qmk_firmware/lib')
-
-    if os.path.exists('lufa'):
-        rmtree('lufa')
-
-    if not fetch_source('lufa'):
-        git_clone(LUFA_GIT_URL, LUFA_GIT_BRANCH)
-
-    os.chdir('../..')
+    checkout_submodule('lufa', LUFA_GIT_URL, LUFA_GIT_BRANCH)
 
 
 def git_clone(git_url=QMK_GIT_URL, git_branch=QMK_GIT_BRANCH):
