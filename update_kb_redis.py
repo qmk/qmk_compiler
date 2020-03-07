@@ -486,7 +486,11 @@ def avr_processor_rules(keyboard_info, rules_mk):
     keyboard_info['bootloader'] = rules_mk['BOOTLOADER'] if 'BOOTLOADER' in rules_mk else 'atmel-dfu'
     keyboard_info['platform'] = rules_mk['ARCH'] if 'ARCH' in rules_mk else 'unknown'
     keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
-    if rules_mk.get('PROTOCOL') == 'VUSB':
+
+    # These are the only two MCUs which need V-USB at the moment.
+    # Eventually we should detect the protocol by looking at PROTOCOL inherited from mcu_selection.mk:
+    #if rules_mk['PROTOCOL'] == 'VUSB':
+    if rules_mk.get('MCU') in ['atmega32a', 'atmega328p']:
         keyboard_info['protocol'] = 'V-USB'
     else:
         keyboard_info['protocol'] = 'LUFA'
