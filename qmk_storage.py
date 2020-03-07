@@ -5,7 +5,7 @@ from shutil import copyfile, copyfileobj
 
 import boto3
 import botocore.client
-import botocore.exceptions as exceptions
+import botocore.exceptions as exceptions  # noqa
 
 # Configuration
 STORAGE_ENGINE = environ.get('STORAGE_ENGINE', 's3')  # 's3' or 'filesystem'
@@ -46,7 +46,6 @@ try:
 except Exception as e:
     if e.__class__.__name__ not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
         logging.warning('Could not contact S3! Storage related functionality will not work!')
-        #logging.exception(e)
 
 
 def delete(object, **kwargs):

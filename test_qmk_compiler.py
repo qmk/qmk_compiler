@@ -42,10 +42,10 @@ def test_0000_checkout_qmk_skip_cache():
 # correct source every way we can. At least test_0001 must be run before any
 # other test in this file or they will all fail.
 def test_0001_fetch_source_qmk():
-    """Make sure that the qmk_firmware.zip the previous test uploaded is the same as the one on disk.
+    """Make sure that we can upload a qmk_firmware.zip and download it again.
     """
     os.rename('qmk_firmware.zip', 'qmk_firmware_cloned.zip')
-    qmk_commands.fetch_source('qmk_firmware')
+    qmk_commands.fetch_source('qmk_firmware', uncompress=False)
     assert filecmp.cmp('qmk_firmware_cloned.zip', 'qmk_firmware.zip')
     os.remove('qmk_firmware_cloned.zip')
     os.remove('qmk_firmware.zip')
@@ -127,8 +127,8 @@ def test_0017_find_all_layouts_cluecard():
     """Make sure that update_kb_redis.find_all_layouts() can find the cluecard layout.
     """
     layouts = update_kb_redis.find_all_layouts('clueboard/card')
-    assert list(layouts) == ['KEYMAP']
-    assert layouts['KEYMAP'] == {
+    assert list(layouts) == ['LAYOUT']
+    assert layouts['LAYOUT'] == {
         'key_count': 12,
         'layout': [
             {'label': 'k00', 'w': 1, 'x': 0, 'y': 0},
@@ -147,7 +147,7 @@ def test_0017_find_all_layouts_cluecard():
     } # yapf: disable
 
 
-### FIXME: Need to write a test for update_kb_redis.parse_config_h()
+### FIXME(skullydazed/anyone): Need to write a test for update_kb_redis.parse_config_h()
 
 
 def test_0019_parse_config_h_file_cluecard():
@@ -155,7 +155,6 @@ def test_0019_parse_config_h_file_cluecard():
     """
     config_h = update_kb_redis.parse_config_h_file('qmk_firmware/keyboards/clueboard/card/config.h')
     assert config_h == {
-        'CONFIG_H': True,
         'VENDOR_ID': '0xC1ED',
         'PRODUCT_ID': '0x2330',
         'DEVICE_VER': '0x0001',
@@ -168,18 +167,17 @@ def test_0019_parse_config_h_file_cluecard():
         'MATRIX_COL_PINS': '{ F1, F7, F6 }',
         'UNUSED_PINS': True,
         'DIODE_DIRECTION': 'ROW2COL',
-        'DEBOUNCING_DELAY': '20',
+        'DEBOUNCE': '20',
         'BACKLIGHT_LEVELS': '6',
-        'IS_COMMAND()': '( \\',
         'RGB_DI_PIN': 'E6',
-        'RGBLED_NUM': '4 // Number of LEDs',
+        'RGBLED_NUM': '4',
         'RGBLIGHT_HUE_STEP': '10',
         'RGBLIGHT_SAT_STEP': '17',
         'RGBLIGHT_VAL_STEP': '17',
     }
 
 
-## FIXME: Write a test for update_kb_redis.parse_rules_mk
+## FIXME(skullydazed/anyone): Write a test for update_kb_redis.parse_rules_mk
 
 
 def test_0021_parse_rules_mk_file_cluecard():
@@ -197,13 +195,13 @@ def test_0021_parse_rules_mk_file_cluecard():
         'EXTRAKEY_ENABLE': 'yes',
         'F_CPU': '16000000',
         'F_USB': '$(F_CPU)',
+        'LINK_TIME_OPTIMIZATION_ENABLE': 'yes',
         'MCU': 'atmega32u4',
         'MIDI_ENABLE': 'no',
         'MOUSEKEY_ENABLE': 'yes',
         'NKRO_ENABLE': 'no',
         'OPT_DEFS': '-DINTERRUPT_CONTROL_ENDPOINT -DBOOTLOADER_SIZE=4096',
         'RGBLIGHT_ENABLE': 'yes',
-        'SLEEP_LED_ENABLE': 'no',
         'UNICODE_ENABLE': 'no',
     }
 
@@ -234,7 +232,6 @@ def test_0023_preprocess_source_cluecard():
     assert 'RGB_TOG,RGB_SAI,RGB_VAI,RGB_HUD,RGB_HUI,RGB_MOD,RGB_SAD,RGB_VAD,BL_STEP' in keymap_text
 
 
-@pytest.mark.skip("I'm not sure what update_kb_redis.populate_enums is for.")
 def test_0024_populate_enums_planck():
     """Test the enum extraction code.
     """
@@ -242,7 +239,14 @@ def test_0024_populate_enums_planck():
     keymap_text = update_kb_redis.preprocess_source(keymap_file)
     keymap = update_kb_redis.extract_layouts(keymap_text, keymap_file)
     keymap_enums = update_kb_redis.populate_enums(keymap_text, keymap)
-    assert keymap_enums  ## FIXME I'm honestly not sure what update_kb_redis.populate_enums is for. Need to figure that out before I can test it.
+    assert '[0]=LAYOUT_planck_grid' in keymap_enums
+    assert '[1]=LAYOUT_planck_grid' in keymap_enums
+    assert '[2]=LAYOUT_planck_grid' in keymap_enums
+    assert '[3]=LAYOUT_planck_grid' in keymap_enums
+    assert '[4]=LAYOUT_planck_grid' in keymap_enums
+    assert '[5]=LAYOUT_planck_grid' in keymap_enums
+    assert '[6]=LAYOUT_planck_grid' in keymap_enums
+
 
 
 def test_0025_extract_layouts_cluecard():
@@ -251,7 +255,7 @@ def test_0025_extract_layouts_cluecard():
     keymap_file = 'qmk_firmware/keyboards/clueboard/card/keymaps/default/keymap.c'
     keymap_text = update_kb_redis.preprocess_source(keymap_file)
     layouts = update_kb_redis.extract_layouts(keymap_text, keymap_file)
-    assert layouts == 'constuint16_tPROGMEMkeymaps[][MATRIX_ROWS][MATRIX_COLS]={[0]=KEYMAP(RGB_TOG,RGB_SAI,RGB_VAI,RGB_HUD,RGB_HUI,RGB_MOD,RGB_SAD,RGB_VAD,BL_STEP,F(0),F(1),F(2))}'
+    assert layouts == 'constuint16_tPROGMEMkeymaps[][MATRIX_ROWS][MATRIX_COLS]={[0]=LAYOUT(RGB_TOG,RGB_SAI,RGB_VAI,RGB_HUD,RGB_HUI,RGB_MOD,RGB_SAD,RGB_VAD,BL_STEP,F(0),F(1),F(2))}'
 
 
 def test_0026_extract_keymap_cluecard():
@@ -259,7 +263,7 @@ def test_0026_extract_keymap_cluecard():
     """
     keymap_file = 'qmk_firmware/keyboards/clueboard/card/keymaps/default/keymap.c'
     layout_macro, layer_list = update_kb_redis.extract_keymap(keymap_file)
-    assert layout_macro == 'KEYMAP'
+    assert layout_macro == 'LAYOUT'
     assert layer_list == [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'F(0)', 'F(1)', 'F(2)']]
 
 
@@ -269,7 +273,7 @@ def test_0027_find_layouts_cluecard():
     keymap_file = 'qmk_firmware/keyboards/clueboard/card/card.h'
     layouts = update_kb_redis.find_layouts(keymap_file)
     assert layouts == {
-        'KEYMAP': {
+        'LAYOUT': {
             'key_count': 12,
             'layout': [
                 {'x': 0, 'y': 0, 'w': 1, 'label': 'k00'}, {'x': 1, 'y': 0, 'w': 1, 'label': 'k01'},
@@ -296,14 +300,14 @@ def test_0029_find_keymaps_cluecard():
     keymap_names = ['default', 'rgb_effects']
     keymaps = [
         [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'F(0)',
-          'F(1)', 'F(2)']],
+          'SONG_SC', 'SONG_GB']],
         [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'KC_NO',
           'KC_NO', 'KC_NO']]
     ]  # yapf: disable
     for keymap_name, keymap_path, keymap_macro, keymap in update_kb_redis.find_keymaps('clueboard/card'):
         assert keymap_name == keymap_names.pop(0)
         assert keymap_path == 'qmk_firmware/keyboards/clueboard/card/keymaps'
-        assert keymap_macro == 'KEYMAP'
+        assert keymap_macro == 'LAYOUT'
         assert keymap == keymaps.pop(0)
 
 
@@ -315,8 +319,7 @@ def test_0030_merge_info_json_cluecard():
         'keyboard_folder': 'clueboard/card',
         'maintainer': 'qmk',
     }
-    with open('qmk_firmware/keyboards/clueboard/info.json') as info_file:
-        merged_keyboard_info = update_kb_redis.merge_info_json(info_file, keyboard_info)
+    merged_keyboard_info = update_kb_redis.merge_info_json('qmk_firmware/keyboards/clueboard/info.json', keyboard_info)
     assert merged_keyboard_info == {'keyboard_name': 'clueboard/card', 'keyboard_folder': 'clueboard/card', 'maintainer': 'skullydazed', 'manufacturer': 'Clueboard'}
 
 

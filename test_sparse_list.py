@@ -16,4 +16,4 @@ def test_sparselist_setitem():
 def test_sparselist_getitem():
     my_list = SparseList()
     assert my_list == []
-    assert my_list[5] == None
+    assert my_list[5] is None

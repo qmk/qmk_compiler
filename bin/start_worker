@@ -1,6 +1,10 @@
 #!/bin/sh
 # Start the redis worker.
 
+if [ x"$LOG_LEVEL" = x"" ]; then
+    LOG_LEVEL=info
+fi
+
 if [ x"$REDIS_HOST" = x"" ]; then
     REDIS_HOST=redis.qmk-api
 fi
@@ -14,4 +18,4 @@ until redis-cli -h $REDIS_HOST get mypasswd; do
   sleep 5
 done
 
-exec rq worker -u redis://@${REDIS_HOST}:${REDIS_PORT}/0
+exec rq worker --logging_level $LOG_LEVEL -u redis://@${REDIS_HOST}:${REDIS_PORT}/0
