@@ -185,15 +185,16 @@ def test_0021_parse_rules_mk_file_cluecard():
     """
     rules_mk = update_kb_redis.parse_rules_mk_file('qmk_firmware/keyboards/clueboard/card/rules.mk')
     assert rules_mk == {
+        'ARCH': 'AVR8',
         'AUDIO_ENABLE': 'yes',
-        'BACKLIGHT_DRIVER': 'custom',
         'BACKLIGHT_ENABLE': 'yes',
         'BLUETOOTH_ENABLE': 'no',
-        'BOOTLOADER': 'atmel-dfu',
         'BOOTMAGIC_ENABLE': 'no',
         'COMMAND_ENABLE': 'yes',
         'CONSOLE_ENABLE': 'yes',
         'EXTRAKEY_ENABLE': 'yes',
+        'F_CPU': '16000000',
+        'F_USB': '$(F_CPU)',
         'LINK_TIME_OPTIMIZATION_ENABLE': 'yes',
         'MCU': 'atmega32u4',
         'MIDI_ENABLE': 'no',
@@ -290,23 +291,6 @@ def test_0028_find_info_json_clueboard_66_rev3():
     """
     info_json_files = update_kb_redis.find_info_json('clueboard/66/rev3')
     assert info_json_files == ['qmk_firmware/keyboards/clueboard/66/rev3/../../info.json', 'qmk_firmware/keyboards/clueboard/66/rev3/../info.json']
-
-
-def test_0029_find_keymaps_cluecard():
-    """Make sure our keymap iterator works.
-    """
-    keymap_names = ['default', 'rgb_effects']
-    keymaps = [
-        [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'SONG_SU',
-          'SONG_SC', 'SONG_GB']],
-        [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'KC_NO',
-          'KC_NO', 'KC_NO']]
-    ]  # yapf: disable
-    for keymap_name, keymap_path, keymap_macro, keymap in update_kb_redis.find_keymaps('clueboard/card'):
-        assert keymap_name == keymap_names.pop(0)
-        assert keymap_path == 'qmk_firmware/keyboards/clueboard/card/keymaps'
-        assert keymap_macro == 'LAYOUT'
-        assert keymap == keymaps.pop(0)
 
 
 def test_0030_merge_info_json_cluecard():
