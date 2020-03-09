@@ -185,16 +185,15 @@ def test_0021_parse_rules_mk_file_cluecard():
     """
     rules_mk = update_kb_redis.parse_rules_mk_file('qmk_firmware/keyboards/clueboard/card/rules.mk')
     assert rules_mk == {
-        'ARCH': 'AVR8',
         'AUDIO_ENABLE': 'yes',
+        'BACKLIGHT_DRIVER': 'custom',
         'BACKLIGHT_ENABLE': 'yes',
         'BLUETOOTH_ENABLE': 'no',
+        'BOOTLOADER': 'atmel-dfu',
         'BOOTMAGIC_ENABLE': 'no',
         'COMMAND_ENABLE': 'yes',
         'CONSOLE_ENABLE': 'yes',
         'EXTRAKEY_ENABLE': 'yes',
-        'F_CPU': '16000000',
-        'F_USB': '$(F_CPU)',
         'LINK_TIME_OPTIMIZATION_ENABLE': 'yes',
         'MCU': 'atmega32u4',
         'MIDI_ENABLE': 'no',
