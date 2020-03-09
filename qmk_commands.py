@@ -12,7 +12,7 @@ from qmk_errors import NoSuchKeyboardError
 
 ## Environment setup
 if 'GIT_BRANCH' in os.environ:
-    for key in 'CHIBIOS_GIT_BRANCH', 'CHIBIOS_CONTRIB_GIT_BRANCH', 'LUFA_GIT_BRANCH', 'QMK_GIT_BRANCH':
+    for key in 'CHIBIOS_GIT_BRANCH', 'CHIBIOS_CONTRIB_GIT_BRANCH', 'LUFA_GIT_BRANCH', 'VUSB_GIT_BRANCH', 'QMK_GIT_BRANCH':
         if key not in os.environ:
             os.environ[key] = os.environ['GIT_BRANCH']
 
@@ -30,6 +30,8 @@ CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('CHIBIOS_CONTRIB_GIT_BRANCH', 'qmk')
 CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
 LUFA_GIT_BRANCH = os.environ.get('LUFA_GIT_BRANCH', 'master')
 LUFA_GIT_URL = os.environ.get('LUFA_GIT_URL', 'https://github.com/qmk/lufa')
+VUSB_GIT_BRANCH = os.environ.get('VUSB_GIT_BRANCH', 'master')
+VUSB_GIT_URL = os.environ.get('VUSB_GIT_URL', 'https://github.com/obdev/v-usb')
 
 ZIP_EXCLUDES = {
     'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'),
@@ -144,6 +146,12 @@ def checkout_lufa():
     """Do whatever is needed to get the latest version of LUFA.
     """
     checkout_submodule('lufa', LUFA_GIT_URL, LUFA_GIT_BRANCH)
+
+
+def checkout_vusb():
+    """Do whatever is needed to get the latest version of V-USB.
+    """
+    checkout_submodule('vusb', VUSB_GIT_URL, VUSB_GIT_BRANCH)
 
 
 def git_clone(git_url=QMK_GIT_URL, git_branch=QMK_GIT_BRANCH):
