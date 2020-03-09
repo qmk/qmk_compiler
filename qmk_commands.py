@@ -32,9 +32,9 @@ LUFA_GIT_BRANCH = os.environ.get('LUFA_GIT_BRANCH', 'master')
 LUFA_GIT_URL = os.environ.get('LUFA_GIT_URL', 'https://github.com/qmk/lufa')
 
 ZIP_EXCLUDES = {
-    'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'),
-    'chibios': ('chibios/.git/*'),
-    'chibios-contrib': ('chibios-contrib/.git/*'),
+    'qmk_firmware': ['qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'],
+    'chibios': ['chibios/.git/*'],
+    'chibios-contrib': ['chibios-contrib/.git/*'],
 }
 
 severities = {

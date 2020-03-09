@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""Show the current job queue.
+"""
+import qmk_redis
+
+print('*** Flushed %s jobs from the queue.' % (qmk_redis.rq.empty()))

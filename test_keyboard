@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Run a test compile for a keyboard.
+"""
+import random
+import sys
+from time import strftime, sleep
+
+import qmk_redis
+from qmk_compiler import compile_firmware
+
+if len(sys.argv) != 2:
+    print('Usage: %s <keyboard_name>' % sys.argv[0])
+    exit(1)
+keyboard_name = sys.argv[1]
+metadata = qmk_redis.get('qmk_api_kb_%s' % (keyboard_name))
+if not metadata:
+    print('No such keyboard!', keyboard_name)
+    exit(1)
+
+if not metadata['layouts']:
+    print('No available layouts for %s!' % keyboard)
+    exit(1)
+
+# Prepare our compile
+layout_macro = random.choice(list(metadata['layouts']))
+layout = list(map(lambda x: 'KC_NO', metadata['layouts'][layout_macro]['layout']))
+layers = [layout, list(map(lambda x: 'KC_TRNS', layout))]
+
+print('*** There are %s jobs on the queue.' % (len(qmk_redis.rq.jobs)))
+
+print('***', strftime('%Y-%m-%d %H:%M:%S %z'))
+print('Beginning test compile for %s, layout %s' % (keyboard_name, layout_macro))
+job = compile_firmware.delay(keyboard_name, 'cli_test_compile', layout_macro, layers)
+print('Successfully enqueued job_id %s, polling every 5 seconds.' % (job.id,))
+started = False
+print('Waiting to start compiling...', end="", flush=True)
+while job.get_status() in ['queued', 'deferred', 'started']:
+    if not started and job.get_status() == 'started':
+        started = True
+        print('\nWorker has picked up job and begun to compile.')
+        print('Waiting for compile...', end="", flush=True)
+    sleep(5)
+    print('.', end="", flush=True)
+
+if job.result and job.result['returncode'] == 0:
+    print('\nCompile job completed successfully!')
+    exit(0)
+else:
+    print('\nCould not compile %s, layout %s, return code %s' % (keyboard_name, layout_macro, job.result['returncode']))
+    print(job.result['output'])
+    exit(1)

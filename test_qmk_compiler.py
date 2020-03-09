@@ -292,23 +292,6 @@ def test_0028_find_info_json_clueboard_66_rev3():
     assert info_json_files == ['qmk_firmware/keyboards/clueboard/66/rev3/../../info.json', 'qmk_firmware/keyboards/clueboard/66/rev3/../info.json']
 
 
-def test_0029_find_keymaps_cluecard():
-    """Make sure our keymap iterator works.
-    """
-    keymap_names = ['default', 'rgb_effects']
-    keymaps = [
-        [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'SONG_SU',
-          'SONG_SC', 'SONG_GB']],
-        [['RGB_TOG', 'RGB_SAI', 'RGB_VAI', 'RGB_HUD', 'RGB_HUI', 'RGB_MOD', 'RGB_SAD', 'RGB_VAD', 'BL_STEP', 'KC_NO',
-          'KC_NO', 'KC_NO']]
-    ]  # yapf: disable
-    for keymap_name, keymap_path, keymap_macro, keymap in update_kb_redis.find_keymaps('clueboard/card'):
-        assert keymap_name == keymap_names.pop(0)
-        assert keymap_path == 'qmk_firmware/keyboards/clueboard/card/keymaps'
-        assert keymap_macro == 'LAYOUT'
-        assert keymap == keymaps.pop(0)
-
-
 def test_0030_merge_info_json_cluecard():
     """Test our code for merging an info.json into the existing keyboard info.
     """

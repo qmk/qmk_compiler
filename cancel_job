@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Cancel a job that's waiting in the queue.
+"""
+import sys
+
+import qmk_redis
+
+if len(sys.argv) != 2:
+    print('Usage: %s <job_id>' % sys.argv[0])
+    exit(1)
+id = sys.argv[1]
+
+print('*** There are %s jobs on the queue.' % (len(qmk_redis.rq.jobs)))
+
+for i, job in enumerate(qmk_redis.rq.jobs):
+    if id == job.id:
+        job.cancel()
+        print('Canceled job %s. It had %s jobs ahead of it.' % (id, i))
