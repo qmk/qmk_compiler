@@ -12,7 +12,7 @@ The QMK API services are in the `qmk-api` group. Please do not do anything with 
 
 ## Architecture Diagram
 
-![QMK API Architecture. API Clients speak HTTP to the load balancer, which distributes those requests to API nodes. Those nodes communicate with S3 and RQ to deliver information about jobs to clients. Worker nodes in the background pull jobs from RQ and store the results of those jobs in S3.](https://raw.githubusercontent.com/qmk/qmk_api/master/docs/architecture.svg)
+![QMK API Architecture. API Clients speak HTTP to the load balancer, which distributes those requests to API nodes. Those nodes communicate with S3 and RQ to deliver information about jobs to clients. Worker nodes in the background pull jobs from RQ and store the results of those jobs in S3.](https://github.com/qmk/qmk_api/raw/master/docs/architecture.svg?sanitize=true)
 
 ## Services
 
