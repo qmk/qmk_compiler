@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""Trigger an update of qmk_firmware by toggling a key in redis.
+"""
+import qmk_redis
+
+qmk_redis.set('qmk_needs_update', True)

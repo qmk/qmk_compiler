@@ -2,7 +2,7 @@
 # Start the redis worker.
 
 if [ x"$LOG_LEVEL" = x"" ]; then
-    LOG_LEVEL=info
+    LOG_LEVEL=INFO
 fi
 
 if [ x"$REDIS_HOST" = x"" ]; then

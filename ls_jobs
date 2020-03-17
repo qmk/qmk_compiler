@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+"""Show the current job queue.
+"""
+import qmk_redis
+
+print('*** There are %s jobs on the queue.' % (len(qmk_redis.rq.jobs)))
+
+for i, job in enumerate(qmk_redis.rq.jobs):
+    print()
+    if job.func_name == 'qmk_compiler.compile_firmware':
+        args = ', '.join([str(arg) for arg in job.args[:3]])
+    else:
+        args = ', '.join([str(arg) for arg in job.args])
+    kwargs = ', '.join(['%s=%s' % (key, value) for key, value in job.kwargs.items()])
+
+    if args and not kwargs:
+        full_args = args
+    elif kwargs and not args:
+        full_args = kwargs
+    else:
+        full_args = ', '.join([args, kwargs])
+
+    print('\t%s: %s' % (i, job.id))
+    print('\t   %s(%s)' % (job.func_name, full_args))

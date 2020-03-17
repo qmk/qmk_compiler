@@ -92,7 +92,7 @@ def compile_keymap(job, result):
 
 # Public functions
 @job('default', connection=redis, timeout=900)
-def compile_firmware(keyboard, keymap, layout, layers):
+def compile_firmware(keyboard, keymap, layout, layers, source_ip=None):
     """Compile a firmware.
     """
     keyboard_safe_chars = keyboard.replace('/', '-')
@@ -106,6 +106,7 @@ def compile_firmware(keyboard, keymap, layout, layers):
         'author': '',
         'notes': '',
         'version': 1,
+        'source_ip': source_ip,
         'documentation': 'This file is a configurator export. You can compile it directly inside QMK using the command `bin/qmk compile %s`' % (keymap_json_file,)
     })
     result = {
@@ -118,6 +119,7 @@ def compile_firmware(keyboard, keymap, layout, layers):
         'output': '',
         'firmware': None,
         'firmware_filename': '',
+        'source_ip': source_ip,
     }
 
     try:
@@ -132,11 +134,13 @@ def compile_firmware(keyboard, keymap, layout, layers):
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
         # If this keyboard needs a submodule check it out
-        if kb_data['protocol'] in ['ChibiOS', 'LUFA']:
+        if kb_data.get('protocol') in ['ChibiOS', 'LUFA']:
             checkout_lufa()
-            if kb_data['protocol'] == 'ChibiOS':
-                checkout_chibios()
-        elif kb_data['protocol'] == 'V-USB':
+
+        if kb_data.get('protocol') == 'ChibiOS':
+            checkout_chibios()
+
+        if kb_data.get('protocol') == 'V-USB':
             checkout_vusb()
 
         # Write the keymap file

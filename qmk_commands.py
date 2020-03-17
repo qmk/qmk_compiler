@@ -34,9 +34,9 @@ VUSB_GIT_BRANCH = os.environ.get('VUSB_GIT_BRANCH', 'master')
 VUSB_GIT_URL = os.environ.get('VUSB_GIT_URL', 'https://github.com/obdev/v-usb')
 
 ZIP_EXCLUDES = {
-    'qmk_firmware': ('qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'),
-    'chibios': ('chibios/.git/*'),
-    'chibios-contrib': ('chibios-contrib/.git/*'),
+    'qmk_firmware': ['qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'],
+    'chibios': ['chibios/.git/*'],
+    'chibios-contrib': ['chibios-contrib/.git/*'],
 }
 
 severities = {
