@@ -67,7 +67,7 @@ def list_keyboards():
     """
     chdir('qmk_firmware')
     try:
-        keyboards = check_output(('make', 'list-keyboards'), stderr=STDOUT, universal_newlines=True)
+        keyboards = check_output(('qmk', 'list-keyboards'), stderr=STDOUT, universal_newlines=True)
         keyboards = keyboards.strip()
         keyboards = keyboards.split('\n')[-1]
     finally:
