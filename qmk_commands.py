@@ -31,6 +31,15 @@ CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://git
 LUFA_GIT_BRANCH = os.environ.get('LUFA_GIT_BRANCH', 'master')
 LUFA_GIT_URL = os.environ.get('LUFA_GIT_URL', 'https://github.com/qmk/lufa')
 
+KEYMAP_DOCUMENTATION = """"This file is a QMK Configurator export. You can import this at <https://config.qmk.fm>. It can also be used directly with QMK's source code.
+
+To setup your QMK environment check out the tutorial: <https://docs.qmk.fm/#/newbs>
+
+You can convert this file to a keymap.c using this command: `qmk json2c {keymap}`
+
+You can compile this keymap using this command: `qmk compile {keymap}`"
+"""
+
 ZIP_EXCLUDES = {
     'qmk_firmware': ['qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'],
     'chibios': ['chibios/.git/*'],
@@ -302,3 +311,17 @@ def write_version_txt():
     hash = check_output(['git', 'rev-parse', 'HEAD'], universal_newlines=True)
     version_txt = Path('version.txt')
     version_txt.write_text(hash + '\n')
+
+
+def keymap_skeleton():
+    """Returns the minimal structure needed for a keymap.json.
+    """
+    return {
+            'version': 1,
+            'notes': '',
+            'keyboard': None,
+            'keymap': None,
+            'layout': None,
+            'layers': [],
+            'documentation': KEYMAP_DOCUMENTATION,
+    }
