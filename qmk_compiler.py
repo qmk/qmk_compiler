@@ -3,7 +3,7 @@ import logging
 from io import BytesIO
 from os import chdir, environ, path, remove
 from subprocess import check_output, CalledProcessError, STDOUT
-from time import strftime
+from time import strftime, time
 from traceback import format_exc
 
 from rq import get_current_job
@@ -80,7 +80,7 @@ def compile_keymap(job, result):
         result['firmware_filename'] = find_firmware_file()
 
     except CalledProcessError as build_error:
-        logging.error('Could not build firmware (%s): %s', build_error.cmd, build_error.output)
+        print('Could not build firmware (%s): %s' % (build_error.cmd, build_error.output))
         result['returncode'] = build_error.returncode
         result['cmd'] = build_error.cmd
         result['output'] = build_error.output
@@ -106,7 +106,6 @@ def compile_firmware(keyboard, keymap, layout, layers, source_ip=None):
         'author': '',
         'notes': '',
         'version': 1,
-        'source_ip': source_ip,
         'documentation': 'This file is a configurator export. You can compile it directly inside QMK using the command `bin/qmk compile %s`' % (keymap_json_file,)
     })
     result = {
@@ -130,7 +129,7 @@ def compile_firmware(keyboard, keymap, layout, layers, source_ip=None):
 
         # Sanity checks
         if not path.exists('qmk_firmware/keyboards/' + keyboard):
-            logging.error('Unknown keyboard: %s', keyboard)
+            print('Unknown keyboard: %s' % (keyboard,))
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
         # If this keyboard needs a submodule check it out
@@ -161,8 +160,71 @@ def compile_firmware(keyboard, keymap, layout, layers, source_ip=None):
     return result
 
 
+@job('default', connection=redis, timeout=900)
+def compile_json(keyboard_keymap_data, source_ip=None):
+    """Compile a keymap.
+
+    Arguments:
+
+        keyboard_keymap_data
+            A configurator export file that's been deserialized
+
+        source_ip
+            The IP that submitted the compile job
+    """
+    result = {
+        'returncode': -2,
+        'output': '',
+        'firmware': None,
+        'firmware_filename': '',
+        'source_ip': source_ip,
+        'output': 'Unknown error',
+    }
+    try:
+        for key in ('keyboard', 'layout', 'keymap'):
+            result[key] = keyboard_keymap_data[key]
+
+        result['keymap_archive'] = '%s-%s.json' % (result['keyboard'].replace('/', '-'), result['keymap'].replace('/', '-'))
+        result['keymap_json'] = json.dumps(keyboard_keymap_data)
+        result['command'] = ['bin/qmk', 'compile', result['keymap_archive']]
+
+        kb_data = qmk_redis.get('qmk_api_kb_' + result['keyboard'])
+        job = get_current_job()
+        result['id'] = job.id
+        checkout_qmk()
+
+        # Sanity checks
+        if not path.exists('qmk_firmware/keyboards/' + result['keyboard']):
+            print('Unknown keyboard: %s' % (result['keyboard'],))
+            return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
+
+        # If this keyboard needs a submodule check it out
+        if kb_data.get('protocol') in ['ChibiOS', 'LUFA']:
+            checkout_lufa()
+
+        if kb_data.get('protocol') == 'ChibiOS':
+            checkout_chibios()
+
+        # Write the keymap file
+        with open(path.join('qmk_firmware', result['keymap_archive']), 'w') as fd:
+            fd.write(result['keymap_json'] + '\n')
+
+        # Compile the firmware
+        store_firmware_source(result)
+        remove(result['source_archive'])
+        compile_keymap(job, result)
+        store_firmware_binary(result)
+
+    except Exception as e:
+        result['returncode'] = -3
+        result['exception'] = e.__class__.__name__
+        result['stacktrace'] = format_exc()
+
+    return result
+
+
 @job('default', connection=redis)
 def ping():
     """Write a timestamp to redis to make sure at least one worker is running ok.
     """
-    return redis.set('qmk_api_last_ping', strftime('"%Y-%m-%d %H:%M:%SZ"'))
+    return redis.set('qmk_api_last_ping', time())
