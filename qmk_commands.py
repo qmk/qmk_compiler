@@ -31,7 +31,7 @@ CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://git
 LUFA_GIT_BRANCH = os.environ.get('LUFA_GIT_BRANCH', 'master')
 LUFA_GIT_URL = os.environ.get('LUFA_GIT_URL', 'https://github.com/qmk/lufa')
 VUSB_GIT_BRANCH = os.environ.get('VUSB_GIT_BRANCH', 'master')
-VUSB_GIT_URL = os.environ.get('VUSB_GIT_URL', 'https://github.com/obdev/v-usb')
+VUSB_GIT_URL = os.environ.get('VUSB_GIT_URL', 'https://github.com/qmk/v-usb')
 
 ZIP_EXCLUDES = {
     'qmk_firmware': ['qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'],
