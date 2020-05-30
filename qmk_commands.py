@@ -28,6 +28,8 @@ CHIBIOS_GIT_BRANCH = os.environ.get('CHIBIOS_GIT_BRANCH', 'qmk')
 CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
 CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('CHIBIOS_CONTRIB_GIT_BRANCH', 'qmk')
 CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
+PRINTF_GIT_BRANCH = os.environ.get('PRINTF_GIT_BRANCH', 'qmk')
+PRINTF_GIT_URL = os.environ.get('PRINTF_GIT_URL', 'https://github.com/qmk/printf')
 LUFA_GIT_BRANCH = os.environ.get('LUFA_GIT_BRANCH', 'master')
 LUFA_GIT_URL = os.environ.get('LUFA_GIT_URL', 'https://github.com/qmk/lufa')
 VUSB_GIT_BRANCH = os.environ.get('VUSB_GIT_BRANCH', 'master')
@@ -149,6 +151,7 @@ def checkout_chibios():
     """
     checkout_submodule('chibios', CHIBIOS_GIT_URL, CHIBIOS_GIT_BRANCH)
     checkout_submodule('chibios-contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
+    checkout_submodule('printf', PRINTF_GIT_URL, PRINTF_GIT_BRANCH)
 
 
 def checkout_lufa():
