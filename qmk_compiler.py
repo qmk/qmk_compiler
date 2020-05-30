@@ -11,7 +11,7 @@ from rq.decorators import job
 
 import qmk_redis
 import qmk_storage
-from qmk_commands import checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, write_version_txt
+from qmk_commands import checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
 from qmk_redis import redis
 
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
@@ -138,6 +138,9 @@ def compile_firmware(keyboard, keymap, layout, layers, source_ip=None):
 
         if kb_data.get('protocol') == 'ChibiOS':
             checkout_chibios()
+
+        if kb_data.get('protocol') == 'V-USB':
+            checkout_vusb()
 
         # Write the keymap file
         with open(path.join('qmk_firmware', keymap_json_file), 'w') as fd:
