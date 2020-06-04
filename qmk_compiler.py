@@ -208,6 +208,9 @@ def compile_json(keyboard_keymap_data, source_ip=None):
         if kb_data.get('protocol') == 'ChibiOS':
             checkout_chibios()
 
+        if kb_data.get('protocol') == 'V-USB':
+            checkout_vusb()
+
         # Write the keymap file
         with open(path.join('qmk_firmware', result['keymap_archive']), 'w') as fd:
             fd.write(result['keymap_json'] + '\n')
