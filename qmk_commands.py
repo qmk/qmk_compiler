@@ -127,9 +127,9 @@ def checkout_qmk(skip_cache=False, require_cache=False):
         rmtree('qmk_firmware')
 
     if require_cache:
-        fetch_source(repo_name(QMK_GIT_URL))
-    elif skip_cache or not fetch_source(repo_name(QMK_GIT_URL)):
-        git_clone(QMK_GIT_URL, QMK_GIT_BRANCH)
+        fetch_source('qmk_firmware')
+    elif skip_cache or not fetch_source('qmk_firmware'):
+        git_clone('qmk_firmware', QMK_GIT_URL, QMK_GIT_BRANCH)
 
 
 def checkout_submodule(name, url, branch):
@@ -141,7 +141,7 @@ def checkout_submodule(name, url, branch):
         rmtree(name)
 
     if not fetch_source(name):
-        git_clone(url, branch)
+        git_clone(name, url, branch)
 
     os.chdir('../..')
 
@@ -166,15 +166,14 @@ def checkout_vusb():
     checkout_submodule('vusb', VUSB_GIT_URL, VUSB_GIT_BRANCH)
 
 
-def git_clone(git_url=QMK_GIT_URL, git_branch=QMK_GIT_BRANCH):
+def git_clone(repo, git_url, git_branch):
     """Clone a git repo.
     """
-    repo = repo_name(git_url)
     zipfile_name = repo + '.zip'
     command = ['git', 'clone', '--single-branch', '-b', git_branch, git_url, repo]
 
     try:
-        logging.debug('Cloning qmk_firmware: %s', ' '.join(command))
+        logging.debug('Cloning repository: %s', ' '.join(command))
         check_output(command, stderr=STDOUT, universal_newlines=True)
         os.chdir(repo)
         write_version_txt()
@@ -303,17 +302,6 @@ def memoize(obj):
         return cache[key]
 
     return memoizer
-
-
-def repo_name(git_url):
-    """Returns the name a git URL will be cloned to.
-    """
-    name = git_url.split('/')[-1]
-
-    if name.endswith('.git'):
-        name = name[:-4]
-
-    return name.lower()
 
 
 def write_version_txt():
