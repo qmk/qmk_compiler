@@ -105,24 +105,6 @@ def test_0013_git_hash():
     assert len(hash) == 40
 
 
-def test_0014_repo_name_qmk_firmware():
-    """Make sure that the qmk_firmware git url is reliably turned into qmk_firmware.
-    """
-    assert qmk_commands.repo_name('https://github.com/qmk/qmk_firmware.git') == 'qmk_firmware'
-
-
-def test_0015_repo_name_chibios():
-    """Make sure that the qmk_firmware git url is reliably turned into qmk_firmware.
-    """
-    assert qmk_commands.repo_name('https://github.com/qmk/ChibiOS.git') == 'chibios'
-
-
-def test_0016_repo_name_chibios_contrib():
-    """Make sure that the qmk_firmware git url is reliably turned into qmk_firmware.
-    """
-    assert qmk_commands.repo_name('https://github.com/qmk/ChibiOS-Contrib.git') == 'chibios-contrib'
-
-
 def test_0017_find_all_layouts_cluecard():
     """Make sure that update_kb_redis.find_all_layouts() can find the cluecard layout.
     """
