@@ -29,7 +29,7 @@ keymap_macro_re = re.compile(r']=(KEYMAP[0-9a-z_]*)\(')
 ARM_PROCESSORS = 'cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'MKL26Z64', 'MK20DX128', 'MK20DX256'
 STM32_PROCESSORS = 'STM32F042', 'STM32F072', 'STM32F103', 'STM32F303'
 LUFA_PROCESSORS = 'at90usb646', 'at90usb647', 'at90usb1286', 'at90usb1287', 'atmega16u2', 'atmega32u2', 'atmega16u4', 'atmega32u4', None
-VUSB_PROCESSORS = 'atmega32a', 'atmega328p', 'attiny85'
+VUSB_PROCESSORS = 'atmega32a', 'atmega328p', 'atmega328', 'attiny85'
 
 def log_error(message):
     """Writes a log message to both the std logging module and the JSON error_log.
