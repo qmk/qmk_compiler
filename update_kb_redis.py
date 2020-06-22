@@ -26,8 +26,7 @@ layout_macro_re = re.compile(r']=(LAYOUT[0-9a-z_]*)\(')
 keymap_macro_re = re.compile(r']=(KEYMAP[0-9a-z_]*)\(')
 
 # Processors
-ARM_PROCESSORS = 'cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'MKL26Z64', 'MK20DX128', 'MK20DX256'
-STM32_PROCESSORS = 'STM32F042', 'STM32F072', 'STM32F103', 'STM32F303'
+CHIBIOS_PROCESSORS = 'cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'MKL26Z64', 'MK20DX128', 'MK20DX256', 'STM32F042', 'STM32F072', 'STM32F103', 'STM32F303'
 LUFA_PROCESSORS = 'at90usb646', 'at90usb647', 'at90usb1286', 'at90usb1287', 'atmega16u2', 'atmega32u2', 'atmega16u4', 'atmega32u4', None
 VUSB_PROCESSORS = 'atmega32a', 'atmega328p', 'atmega328', 'attiny85'
 
@@ -569,7 +568,7 @@ def process_keyboard(keyboard, usb_list, kb_list, kb_entries):
 
     # Setup platform specific keys
     mcu = rules_mk.get('MCU')
-    if mcu in ARM_PROCESSORS or mcu.startswith(STM32_PROCESSORS):
+    if mcu.startswith(CHIBIOS_PROCESSORS):
         arm_processor_rules(keyboard_info, rules_mk)
     elif mcu in LUFA_PROCESSORS + VUSB_PROCESSORS:
         avr_processor_rules(keyboard_info, rules_mk)
