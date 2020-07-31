@@ -24,9 +24,9 @@ DISCORD_WEBHOOK_ERROR_URL = os.environ.get('DISCORD_WEBHOOK_ERROR_URL', DISCORD_
 
 QMK_GIT_BRANCH = os.environ.get('QMK_GIT_BRANCH', 'master')
 QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
-CHIBIOS_GIT_BRANCH = os.environ.get('CHIBIOS_GIT_BRANCH', 'qmk')
+CHIBIOS_GIT_BRANCH = os.environ.get('CHIBIOS_GIT_BRANCH', 'master')
 CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
-CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('CHIBIOS_CONTRIB_GIT_BRANCH', 'qmk')
+CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('CHIBIOS_CONTRIB_GIT_BRANCH', 'master')
 CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
 PRINTF_GIT_BRANCH = os.environ.get('PRINTF_GIT_BRANCH', 'master')
 PRINTF_GIT_URL = os.environ.get('PRINTF_GIT_URL', 'https://github.com/qmk/printf')
