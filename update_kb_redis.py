@@ -568,7 +568,7 @@ def process_keyboard(keyboard, usb_list, kb_list, kb_entries):
 
     # Setup platform specific keys
     mcu = rules_mk.get('MCU')
-    if mcu.startswith(CHIBIOS_PROCESSORS):
+    if mcu in CHIBIOS_PROCESSORS:
         arm_processor_rules(keyboard_info, rules_mk)
     elif mcu in LUFA_PROCESSORS + VUSB_PROCESSORS:
         avr_processor_rules(keyboard_info, rules_mk)
