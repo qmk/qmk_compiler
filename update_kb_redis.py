@@ -26,9 +26,9 @@ layout_macro_re = re.compile(r']=(LAYOUT[0-9a-z_]*)\(')
 keymap_macro_re = re.compile(r']=(KEYMAP[0-9a-z_]*)\(')
 
 # Processors
-ARM_PROCESSORS = 'cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'MKL26Z64', 'MK20DX128', 'MK20DX256', 'STM32F042', 'STM32F072', 'STM32F103', 'STM32F303'
-AVR_PROCESSORS = 'at90usb1286', 'at90usb646', 'atmega16u2', 'atmega328p', 'atmega32a', 'atmega32u2', 'atmega32u4', 'attiny85', None
-
+CHIBIOS_PROCESSORS = 'cortex-m0', 'cortex-m0plus', 'cortex-m3', 'cortex-m4', 'MKL26Z64', 'MK20DX128', 'MK20DX256', 'STM32F042', 'STM32F072', 'STM32F103', 'STM32F303'
+LUFA_PROCESSORS = 'at90usb646', 'at90usb647', 'at90usb1286', 'at90usb1287', 'atmega16u2', 'atmega32u2', 'atmega16u4', 'atmega32u4', None
+VUSB_PROCESSORS = 'atmega32a', 'atmega328p', 'atmega328', 'attiny85'
 
 def log_error(message):
     """Writes a log message to both the std logging module and the JSON error_log.
@@ -486,10 +486,9 @@ def avr_processor_rules(keyboard_info, rules_mk):
     keyboard_info['platform'] = rules_mk['ARCH'] if 'ARCH' in rules_mk else 'unknown'
     keyboard_info['processor'] = rules_mk['MCU'] if 'MCU' in rules_mk else 'unknown'
 
-    # These are the only two MCUs which need V-USB at the moment.
     # Eventually we should detect the protocol by looking at PROTOCOL inherited from mcu_selection.mk:
     #if rules_mk['PROTOCOL'] == 'VUSB':
-    if rules_mk.get('MCU') in ['atmega32a', 'atmega328p']:
+    if rules_mk.get('MCU') in VUSB_PROCESSORS:
         keyboard_info['protocol'] = 'V-USB'
     else:
         keyboard_info['protocol'] = 'LUFA'
@@ -569,9 +568,9 @@ def process_keyboard(keyboard, usb_list, kb_list, kb_entries):
 
     # Setup platform specific keys
     mcu = rules_mk.get('MCU')
-    if mcu in ARM_PROCESSORS:
+    if mcu in CHIBIOS_PROCESSORS:
         arm_processor_rules(keyboard_info, rules_mk)
-    elif mcu in AVR_PROCESSORS:
+    elif mcu in LUFA_PROCESSORS + VUSB_PROCESSORS:
         avr_processor_rules(keyboard_info, rules_mk)
     else:
         log_warning("%s: Unknown MCU: %s" % (keyboard, mcu))
