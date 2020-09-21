@@ -176,7 +176,7 @@ def test_0021_parse_rules_mk_file_cluecard():
         'COMMAND_ENABLE': 'yes',
         'CONSOLE_ENABLE': 'yes',
         'EXTRAKEY_ENABLE': 'yes',
-        'LINK_TIME_OPTIMIZATION_ENABLE': 'yes',
+        'LTO_ENABLE': 'yes',
         'MCU': 'atmega32u4',
         'MIDI_ENABLE': 'no',
         'MOUSEKEY_ENABLE': 'yes',
