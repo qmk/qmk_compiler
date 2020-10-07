@@ -4,5 +4,6 @@ cchardet
 dhooks
 flake8
 rq
+pygments
 pytest
 pytz
