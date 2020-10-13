@@ -466,8 +466,6 @@ def arm_processor_rules(keyboard_info, rules_mk):
     if keyboard_info['bootloader'] == 'unknown':
         if 'STM32' in keyboard_info['processor']:
             keyboard_info['bootloader'] = 'stm32-dfu'
-        elif keyboard_info.get('manufacturer') == 'Input Club':
-            keyboard_info['bootloader'] = 'kiibohd-dfu'
     keyboard_info['protocol'] = 'ChibiOS'
     if 'STM32' in keyboard_info['processor']:
         keyboard_info['platform'] = 'STM32'
