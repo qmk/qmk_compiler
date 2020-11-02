@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""Show the current job queue.
+"""
+import qmk_redis
+
+print('*** There are %s jobs on the queue.' % (len(qmk_redis.rq.jobs)))
+
+job_ips = {}
+
+for i, job in enumerate(qmk_redis.rq.jobs):
+    if job.func_name != 'qmk_compiler.compile_json':
+        continue
+
+    client_ip = job.args[1]
+    if client_ip not in job_ips:
+        job_ips[client_ip] = []
+    job_ips[client_ip].append((job, job.args[0]))
+
+for client_ip, jobs in job_ips.items():
+    print(f'\nClient IP {client_ip} has {len(jobs)} jobs:')
+    for job, args in jobs:
+        print('\t%s: %s' % (i, job.id))
+        print('\t   %s(%s)' % (job.func_name, args))

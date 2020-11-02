@@ -68,6 +68,10 @@ Currently there's no easy way to see what job each compile node is running. For 
 
 This script lets you test the compiling infrastructure even without the HTTP frontend being up. It will insert a compile job and monitor its progress so you can make sure everything is working.
 
+### ./ip_jobs
+
+This script lists the jobs that are waiting to be compiled, grouped by IP. This does not show any jobs that are currently being compiled.
+
 ### ./ls_jobs
 
 This script lists the jobs that are waiting to run. This does not show any jobs that are currently being compiled.
