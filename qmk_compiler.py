@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from io import BytesIO
 from os import chdir, environ, path, remove
 from subprocess import check_output, CalledProcessError, STDOUT
@@ -11,7 +12,7 @@ from rq.decorators import job
 
 import qmk_redis
 import qmk_storage
-from qmk_commands import checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
+from qmk_commands import QMK_GIT_BRANCH, checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
 from qmk_redis import redis
 
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
@@ -187,21 +188,31 @@ def compile_json(keyboard_keymap_data, source_ip=None):
         for key in ('keyboard', 'layout', 'keymap'):
             result[key] = keyboard_keymap_data[key]
 
+        # Gather information
         result['keymap_archive'] = '%s-%s.json' % (result['keyboard'].replace('/', '-'), result['keymap'].replace('/', '-'))
         result['keymap_json'] = json.dumps(keyboard_keymap_data)
         result['command'] = ['bin/qmk', 'compile', result['keymap_archive']]
-
-        kb_data = qmk_redis.get('qmk_api_kb_' + result['keyboard'])
         job = get_current_job()
         result['id'] = job.id
-        checkout_qmk()
+        branch = keyboard_keymap_data.get('branch', QMK_GIT_BRANCH)
 
-        # Sanity checks
+        # Fetch the appropriate version of QMK
+        checkout_qmk(branch=branch)
+
+        # Sanity check
         if not path.exists('qmk_firmware/keyboards/' + result['keyboard']):
             print('Unknown keyboard: %s' % (result['keyboard'],))
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
+        # Pull in the modules from the QMK we just checked out
+        if 'qmk_firmware/lib/python' not in sys.path:
+            sys.path.append('qmk_firmware/lib/python')
+
+        from qmk.info import info_json
+
         # If this keyboard needs a submodule check it out
+        kb_data = info_json(result['keyboard'])
+
         if kb_data.get('protocol') in ['ChibiOS', 'LUFA']:
             checkout_lufa()
 
