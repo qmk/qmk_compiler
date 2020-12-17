@@ -3,10 +3,12 @@ import logging
 import sys
 from io import BytesIO
 from os import chdir, environ, path, remove
+from socket import gethostname
 from subprocess import check_output, CalledProcessError, STDOUT
 from time import strftime, time
 from traceback import format_exc
 
+import graphyte
 from rq import get_current_job
 from rq.decorators import job
 
@@ -15,7 +17,11 @@ import qmk_storage
 from qmk_commands import QMK_GIT_BRANCH, checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
 from qmk_redis import redis
 
+DEBUG = int(environ.get('DEBUG', 0))
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
+GRAPHITE_HOST = environ.get('GRAPHITE_HOST', 'qmk_metrics_aggregator')
+GRAPHITE_PORT = int(environ.get('GRAPHITE_PORT', 2023))
+
 # The `keymap.c` template to use when a keyboard doesn't have its own
 DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
 
@@ -162,7 +168,7 @@ def compile_firmware(keyboard, keymap, layout, layers, source_ip=None):
 
 
 @job('default', connection=redis, timeout=900)
-def compile_json(keyboard_keymap_data, source_ip=None):
+def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True):
     """Compile a keymap.
 
     Arguments:
@@ -173,7 +179,9 @@ def compile_json(keyboard_keymap_data, source_ip=None):
         source_ip
             The IP that submitted the compile job
     """
+    base_metric = f'{gethostname()}.qmk_compiler.compile_json'
     result = {
+        'keyboard': 'unknown',
         'returncode': -2,
         'output': '',
         'firmware': None,
@@ -181,6 +189,12 @@ def compile_json(keyboard_keymap_data, source_ip=None):
         'source_ip': source_ip,
         'output': 'Unknown error',
     }
+
+    if DEBUG:
+        print('Pointing graphite at', GRAPHITE_HOST)
+
+    graphyte.init(GRAPHITE_HOST, GRAPHITE_PORT)
+
     try:
         for key in ('keyboard', 'layout', 'keymap'):
             result[key] = keyboard_keymap_data[key]
@@ -226,14 +240,26 @@ def compile_json(keyboard_keymap_data, source_ip=None):
         with open(result['keymap_archive'], 'w') as fd:
             fd.write(result['keymap_json'] + '\n')
 
+        # Write the metrics
+        if send_metrics:
+            graphyte.send(f'{base_metric}.{result["keyboard"]}.all_layouts', 1)
+            graphyte.send(f'{base_metric}.{result["keyboard"]}.{result["layout"]}', 1)
+
         # Compile the firmware
         compile_keymap(job, result)
+
+        if send_metrics and result['returncode'] != 0:
+            graphyte.send(f'{base_metric}.{result["keyboard"]}.errors', 1)
+
         store_firmware_binary(result)
         chdir('..')
         store_firmware_source(result)
         remove(result['source_archive'])
 
     except Exception as e:
+        if send_metrics:
+            graphyte.send(f'{base_metric}.{result["keyboard"]}.errors', 1)
+
         result['returncode'] = -3
         result['exception'] = e.__class__.__name__
         result['stacktrace'] = format_exc()

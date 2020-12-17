@@ -3,6 +3,7 @@ boto3
 cchardet
 dhooks
 flake8
+graphyte
 rq
 pygments
 pytest
