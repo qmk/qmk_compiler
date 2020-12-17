@@ -109,16 +109,13 @@ def discord_embed(severity, source, title, description=None, **fields):
         logging.exception(e)
 
 
-def checkout_qmk(skip_cache=False, require_cache=False):
-    """Do whatever is needed to get the latest version of QMK.
+def checkout_qmk(skip_cache=False, require_cache=False, branch=QMK_GIT_BRANCH):
+    """Clone QMK from git.
 
-    If require_cache is true we only fetch the cached zip file. If
-    skip_cache is true we only clone the source from git. Default
-    behavior is to attempt to fetch the cached zip and if that
-    fails fall back to cloning from git.
+    Deprecated: skip_cache, require_cache
 
     As AssertionError will be thrown if both skip_cache and
-    require_cache are True.
+    require_cache are True, for backward compatibility.
     """
     if skip_cache and require_cache:
         raise ValueError('skip_cache and require_cache conflict!')
@@ -126,24 +123,20 @@ def checkout_qmk(skip_cache=False, require_cache=False):
     if os.path.exists('qmk_firmware'):
         rmtree('qmk_firmware')
 
-    if require_cache:
-        fetch_source('qmk_firmware')
-    elif skip_cache or not fetch_source('qmk_firmware'):
-        git_clone('qmk_firmware', QMK_GIT_URL, QMK_GIT_BRANCH)
+    git_clone('qmk_firmware', QMK_GIT_URL, branch)
 
 
 def checkout_submodule(name, url, branch):
     """Clone a submodule to the lib directory.
     """
-    os.chdir('qmk_firmware/lib')
+    os.chdir('lib')
 
     if os.path.exists(name):
         rmtree(name)
 
-    if not fetch_source(name):
-        git_clone(name, url, branch)
+    git_clone(name, url, branch)
 
-    os.chdir('../..')
+    os.chdir('..')
 
 
 def checkout_chibios():
@@ -170,7 +163,7 @@ def git_clone(repo, git_url, git_branch):
     """Clone a git repo.
     """
     zipfile_name = repo + '.zip'
-    command = ['git', 'clone', '--single-branch', '-b', git_branch, git_url, repo]
+    command = ['git', 'clone', '-q', '--depth', '1', '-b', git_branch, git_url, repo]
 
     try:
         logging.debug('Cloning repository: %s', ' '.join(command))
@@ -186,49 +179,7 @@ def git_clone(repo, git_url, git_branch):
 
     os.chdir('..')
 
-    if repo_cloned:
-        store_source(zipfile_name, repo, 'cache')
-
     return True
-
-
-def fetch_source(repo, uncompress=True):
-    """Retrieve a copy of source from storage.
-    """
-    repo_zip = repo + '.zip'
-
-    if os.path.exists(repo_zip):
-        os.remove(repo_zip)
-
-    try:
-        zipfile_data = qmk_storage.get('cache/%s.zip' % repo)
-    except qmk_storage.exceptions.ClientError as e:
-        logging.warning('Could not fetch %s.zip from S3: %s', repo, e.__class__.__name__)
-        logging.warning(e)
-        return False
-
-    with open(repo_zip, 'xb') as zipfile:
-        zipfile.write(zipfile_data)
-
-    if uncompress:
-        return unzip_source(repo_zip)
-    else:
-        return True
-
-def unzip_source(repo_zip):
-    """Unzip a source repo.
-    """
-    zip_command = ['unzip', repo_zip]
-    try:
-        logging.debug('Unzipping Source: %s', (zip_command))
-        check_output(zip_command)
-        os.remove(repo_zip)  # FIXME: Do I need to remove this? It's removed in #48, but I think I need it?
-        return True
-
-    except CalledProcessError as build_error:
-        logging.error('Could not unzip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
-        logging.error(build_error.output)
-        return False
 
 
 def find_keymap_path(keyboard, keymap):

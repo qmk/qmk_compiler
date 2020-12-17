@@ -26,46 +26,16 @@ import qmk_commands
 ############################################################################
 
 
-def test_0000_checkout_qmk_skip_cache():
+def test_0000_checkout_qmk_master():
     """Make sure that we successfully git clone qmk_firmware and generate the version.txt hash.
     """
-    qmk_commands.checkout_qmk(skip_cache=True)
+    qmk_commands.checkout_qmk(branch='master')
     assert os.path.exists('qmk_firmware/version.txt')
 
 
 ############################################################################
 # Begin Tests                                                              #
 ############################################################################
-
-
-# Source code retrieval testing. Make sure we're storing and fetching the
-# correct source every way we can. At least test_0001 must be run before any
-# other test in this file or they will all fail.
-def test_0001_fetch_source_qmk():
-    """Make sure that we can upload a qmk_firmware.zip and download it again.
-    """
-    os.rename('qmk_firmware.zip', 'qmk_firmware_cloned.zip')
-    qmk_commands.fetch_source('qmk_firmware', uncompress=False)
-    assert filecmp.cmp('qmk_firmware_cloned.zip', 'qmk_firmware.zip')
-    os.remove('qmk_firmware_cloned.zip')
-    os.remove('qmk_firmware.zip')
-
-
-def test_0002_checkout_qmk_cache():
-    """Make sure that we fetch the cache from QMK and don't clone from git.
-    """
-    git_hash = open('qmk_firmware/version.txt', 'r').read()
-    shutil.rmtree('qmk_firmware')
-    update_kb_redis.checkout_qmk(require_cache=True)
-    cached_hash = open('qmk_firmware/version.txt', 'r').read()
-    assert git_hash == cached_hash
-
-
-def test_0003_checkout_qmk_skip_and_require_cache():
-    """Make sure that we can't pass skip_cache and require_cache at the same time
-    """
-    with pytest.raises(ValueError):
-        update_kb_redis.checkout_qmk(skip_cache=True, require_cache=True)
 
 
 # Test out functions that require qmk_firmware be in place on disk.

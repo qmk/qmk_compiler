@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from io import BytesIO
 from os import chdir, environ, path, remove
 from subprocess import check_output, CalledProcessError, STDOUT
@@ -11,7 +12,7 @@ from rq.decorators import job
 
 import qmk_redis
 import qmk_storage
-from qmk_commands import checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
+from qmk_commands import QMK_GIT_BRANCH, checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
 from qmk_redis import redis
 
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
@@ -47,13 +48,12 @@ def store_firmware_metadata(job, result):
 def store_firmware_binary(result):
     """Called while PWD is qmk_firmware to store the firmware hex.
     """
-    firmware_file = 'qmk_firmware/%s' % result['firmware_filename']
     firmware_storage_path = '%(id)s/%(firmware_filename)s' % result
 
-    if not path.exists(firmware_file):
+    if not path.exists(result['firmware_filename']):
         return False
 
-    qmk_storage.save_file(firmware_file, firmware_storage_path)
+    qmk_storage.save_file(result['firmware_filename'], firmware_storage_path)
     result['firmware_binary_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'download')]
 
 
@@ -73,7 +73,6 @@ def store_firmware_source(result):
 
 def compile_keymap(job, result):
     logging.debug('Executing build: %s', result['command'])
-    chdir('qmk_firmware/')
     try:
         result['output'] = check_output(result['command'], stderr=STDOUT, universal_newlines=True)
         result['returncode'] = 0
@@ -87,7 +86,6 @@ def compile_keymap(job, result):
 
     finally:
         store_firmware_metadata(job, result)
-        chdir('..')
 
 
 # Public functions
@@ -187,39 +185,53 @@ def compile_json(keyboard_keymap_data, source_ip=None):
         for key in ('keyboard', 'layout', 'keymap'):
             result[key] = keyboard_keymap_data[key]
 
+        # Gather information
         result['keymap_archive'] = '%s-%s.json' % (result['keyboard'].replace('/', '-'), result['keymap'].replace('/', '-'))
         result['keymap_json'] = json.dumps(keyboard_keymap_data)
         result['command'] = ['bin/qmk', 'compile', result['keymap_archive']]
-
-        kb_data = qmk_redis.get('qmk_api_kb_' + result['keyboard'])
         job = get_current_job()
         result['id'] = job.id
-        checkout_qmk()
+        branch = keyboard_keymap_data.get('branch', QMK_GIT_BRANCH)
 
-        # Sanity checks
-        if not path.exists('qmk_firmware/keyboards/' + result['keyboard']):
+        # Fetch the appropriate version of QMK
+        checkout_qmk(branch=branch)
+        chdir('qmk_firmware')
+
+        # Sanity check
+        if not path.exists('keyboards/' + result['keyboard']):
             print('Unknown keyboard: %s' % (result['keyboard'],))
             return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
 
+        # Pull in the modules from the QMK we just checked out
+        if './lib/python' not in sys.path:
+            sys.path.append('./lib/python')
+
+        from qmk.info import info_json
+
         # If this keyboard needs a submodule check it out
-        if kb_data.get('protocol') in ['ChibiOS', 'LUFA']:
+        kb_info = info_json(result['keyboard'])
+        if 'protocol' not in kb_info:
+            kb_info['protocol'] = 'unknown'
+
+        if kb_info['protocol'] in ['ChibiOS', 'LUFA']:
             checkout_lufa()
 
-        if kb_data.get('protocol') == 'ChibiOS':
+        if kb_info['protocol'] == 'ChibiOS':
             checkout_chibios()
 
-        if kb_data.get('protocol') == 'V-USB':
+        if kb_info['protocol'] == 'V-USB':
             checkout_vusb()
 
         # Write the keymap file
-        with open(path.join('qmk_firmware', result['keymap_archive']), 'w') as fd:
+        with open(result['keymap_archive'], 'w') as fd:
             fd.write(result['keymap_json'] + '\n')
 
         # Compile the firmware
-        store_firmware_source(result)
-        remove(result['source_archive'])
         compile_keymap(job, result)
         store_firmware_binary(result)
+        chdir('..')
+        store_firmware_source(result)
+        remove(result['source_archive'])
 
     except Exception as e:
         result['returncode'] = -3
