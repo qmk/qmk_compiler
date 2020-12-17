@@ -129,14 +129,14 @@ def checkout_qmk(skip_cache=False, require_cache=False, branch=QMK_GIT_BRANCH):
 def checkout_submodule(name, url, branch):
     """Clone a submodule to the lib directory.
     """
-    os.chdir('qmk_firmware/lib')
+    os.chdir('lib')
 
     if os.path.exists(name):
         rmtree(name)
 
     git_clone(name, url, branch)
 
-    os.chdir('../..')
+    os.chdir('..')
 
 
 def checkout_chibios():
