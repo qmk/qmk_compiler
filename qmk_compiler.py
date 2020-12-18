@@ -9,6 +9,7 @@ from time import strftime, time
 from traceback import format_exc
 
 import graphyte
+from geoip import geolite2
 from rq import get_current_job
 from rq.decorators import job
 
@@ -250,6 +251,15 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True):
         compile_keymap(job, result)
         compile_time = time() - compile_start_time
 
+        # Store the source in S3
+        storage_start_time = time()
+        store_firmware_binary(result)
+        chdir('..')
+        store_firmware_source(result)
+        remove(result['source_archive'])
+        storage_time = time() - storage_start_time
+
+        # Send metrics about this build
         if send_metrics:
             graphyte.send(f'{base_metric}.{result["keyboard"]}.all_layouts', 1)
             graphyte.send(f'{base_metric}.{result["keyboard"]}.{result["layout"]}', 1)
@@ -259,20 +269,24 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True):
             graphyte.send(f'{base_metric}.all_keyboards.submodule_time', submodule_time)
             graphyte.send(f'{base_metric}.{result["keyboard"]}.compile_time', compile_time)
             graphyte.send(f'{base_metric}.all_keyboards.compile_time', compile_time)
+
             if result['returncode'] == 0:
                 graphyte.send(f'{base_metric}.{result["keyboard"]}.compile_time', compile_time)
                 graphyte.send(f'{base_metric}.all_keyboards.compile_time', compile_time)
             else:
                 graphyte.send(f'{base_metric}.{result["keyboard"]}.errors', 1)
 
-        storage_start_time = time()
-        store_firmware_binary(result)
-        chdir('..')
-        store_firmware_source(result)
-        remove(result['source_archive'])
-        storage_time = time() - storage_start_time
+            if source_ip:
+                ip_location = geolite2.lookup(source_ip)
 
-        if send_metrics:
+                if ip_location:
+                    if ip_location.subdivisions:
+                        location_key = f'{ip_location.country}_{"_".join(ip_location.subdivisions)}'
+                    else:
+                        location_key = ip_location.country
+
+                    graphyte.send(f'{gethostname()}.user_location.geoip.{location_key}', 1)
+
             total_time = time() - start_time
             graphyte.send(f'{base_metric}.{result["keyboard"]}.storage_time', storage_time)
             graphyte.send(f'{base_metric}.all_keyboards.storage_time', storage_time)
@@ -280,12 +294,12 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True):
             graphyte.send(f'{base_metric}.all_keyboards.total_time', total_time)
 
     except Exception as e:
-        if send_metrics:
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.errors', 1)
-
         result['returncode'] = -3
         result['exception'] = e.__class__.__name__
         result['stacktrace'] = format_exc()
+
+        if send_metrics:
+            graphyte.send(f'{base_metric}.{result["keyboard"]}.errors', 1)
 
     return result
 
