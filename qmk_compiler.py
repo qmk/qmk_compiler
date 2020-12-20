@@ -285,7 +285,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True):
                     else:
                         location_key = ip_location.country
 
-                    graphyte.send(f'{gethostname()}.user_location.geoip.{location_key}', 1)
+                    graphyte.send(f'{gethostname()}.qmk_compiler.geoip.{location_key}', 1)
 
             total_time = time() - start_time
             graphyte.send(f'{base_metric}.{result["keyboard"]}.storage_time', storage_time)
