@@ -46,10 +46,9 @@ for bucket in [S3_BUCKET, COMPILE_S3_BUCKET]:
     try:
         s3.create_bucket(Bucket=bucket)
 
-    
     except ClientError as e:
         if e.response['Error']['Code'] in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists'] and DEBUG > 1:
-            logging.debug('Bucket already exists.')
+            logging.debug('Bucket %s already exists.', bucket)
         else:
             logging.warning('Could not contact S3! Storage related functionality will not work!')
 
