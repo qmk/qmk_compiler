@@ -5,7 +5,7 @@ from shutil import copyfile, copyfileobj
 
 import boto3
 import botocore.client
-import botocore.exceptions as exceptions  # noqa
+import botocore.exceptions
 
 # Configuration
 STORAGE_ENGINE = environ.get('STORAGE_ENGINE', 's3')  # 's3' or 'filesystem'
@@ -46,10 +46,8 @@ for bucket in [S3_BUCKET, COMPILE_S3_BUCKET]:
     try:
         s3.create_bucket(Bucket=bucket)
 
-    except ClientError as e:
-        if e.response['Error']['Code'] in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists'] and DEBUG > 1:
-            logging.debug('Bucket %s already exists.', bucket)
-        else:
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
             logging.warning('Could not contact S3! Storage related functionality will not work!')
 
 
