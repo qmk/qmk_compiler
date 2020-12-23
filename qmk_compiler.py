@@ -63,6 +63,11 @@ def store_firmware_binary(result):
     qmk_storage.save_file(result['firmware_filename'], firmware_storage_path)
     result['firmware_binary_url'] = [path.join(API_URL, 'v1', 'compile', result['id'], 'download')]
 
+    if result['public_firmware']:
+        file_ext = result["firmware_filename"].split(".")[-1]
+        file_name = f'compiled/{result["keyboard"]}_default.{file_ext}'
+        qmk_storage.save_file(result['firmware_filename'], file_name, bucket=qmk_storage.COMPILE_S3_BUCKET)
+
 
 def store_firmware_source(result):
     """Called while PWD is the top-level directory to store the firmware source.
@@ -95,81 +100,8 @@ def compile_keymap(job, result):
         store_firmware_metadata(job, result)
 
 
-# Public functions
 @job('default', connection=redis, timeout=900)
-def compile_firmware(keyboard, keymap, layout, layers, source_ip=None):
-    """Compile a firmware.
-    """
-    keyboard_safe_chars = keyboard.replace('/', '-')
-    keymap_safe_chars = keymap.replace('/', '-')
-    keymap_json_file = '%s-%s.json' % (keyboard_safe_chars, keymap_safe_chars)
-    keymap_json = json.dumps({
-        'keyboard': keyboard,
-        'keymap': keymap,
-        'layout': layout,
-        'layers': layers,
-        'author': '',
-        'notes': '',
-        'version': 1,
-        'documentation': 'This file is a configurator export. You can compile it directly inside QMK using the command `bin/qmk compile %s`' % (keymap_json_file,)
-    })
-    result = {
-        'keyboard': keyboard,
-        'layout': layout,
-        'keymap': keymap,
-        'keymap_archive': keymap_json_file,
-        'command': ['bin/qmk', 'compile', keymap_json_file],
-        'returncode': -2,
-        'output': '',
-        'firmware': None,
-        'firmware_filename': '',
-        'source_ip': source_ip,
-    }
-
-    try:
-        kb_data = qmk_redis.get('qmk_api_kb_' + keyboard)
-        job = get_current_job()
-        result['id'] = job.id
-        checkout_qmk()
-
-        # Sanity checks
-        if not path.exists('qmk_firmware/keyboards/' + keyboard):
-            print('Unknown keyboard: %s' % (keyboard,))
-            return {'returncode': -1, 'command': '', 'output': 'Unknown keyboard!', 'firmware': None}
-
-        # If this keyboard needs a submodule check it out
-        if kb_data.get('protocol') in ['ChibiOS', 'LUFA']:
-            checkout_lufa()
-
-        if kb_data.get('protocol') == 'ChibiOS':
-            checkout_chibios()
-
-        if kb_data.get('protocol') == 'V-USB':
-            checkout_vusb()
-
-        # Write the keymap file
-        with open(path.join('qmk_firmware', keymap_json_file), 'w') as fd:
-            fd.write(keymap_json + '\n')
-
-        # Compile the firmware
-        store_firmware_source(result)
-        remove(result['source_archive'])
-        compile_keymap(job, result)
-        store_firmware_binary(result)
-
-    except Exception as e:
-        result['returncode'] = -3
-        result['exception'] = e.__class__.__name__
-        result['stacktrace'] = format_exc()
-
-        if not result['output']:
-            result['output'] = result['stacktrace']
-
-    return result
-
-
-@job('default', connection=redis, timeout=900)
-def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True):
+def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public_firmware=False):
     """Compile a keymap.
 
     Arguments:
@@ -190,6 +122,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True):
         'firmware_filename': '',
         'source_ip': source_ip,
         'output': 'Unknown error',
+        'public_firmware': public_firmware,
     }
 
     if DEBUG:

@@ -12,7 +12,8 @@ STORAGE_ENGINE = environ.get('STORAGE_ENGINE', 's3')  # 's3' or 'filesystem'
 FILESYSTEM_PATH = environ.get('FILESYSTEM_PATH', 'firmwares')
 S3_HOST = environ.get('S3_HOST', 'http://127.0.0.1:9000')
 S3_LOCATION = environ.get('S3_LOCATION', 'nyc3')
-S3_BUCKET = environ.get('S3_BUCKET', 'qmk')
+S3_BUCKET = environ.get('S3_BUCKET', 'qmk-api')
+COMPILE_S3_BUCKET = environ.get('COMPILE_S3_BUCKET', 'qmk')
 S3_ACCESS_KEY = environ.get('S3_ACCESS_KEY', 'minio_dev')
 S3_SECRET_KEY = environ.get('S3_SECRET_KEY', 'minio_dev_secret')
 S3_SECURE = False
@@ -41,14 +42,16 @@ s3 = session.client(
 )
 
 # Check to see if S3 is working, and if not print an error in the log.
-try:
-    s3.create_bucket(Bucket=S3_BUCKET)
-except Exception as e:
-    if e.__class__.__name__ not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
-        logging.warning('Could not contact S3! Storage related functionality will not work!')
+for bucket in [S3_BUCKET, COMPILE_S3_BUCKET]:
+    try:
+        s3.create_bucket(Bucket=bucket)
+
+    except Exception as e:
+        if e.__class__.__name__ not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
+            logging.warning('Could not contact S3! Storage related functionality will not work!')
 
 
-def delete(object, **kwargs):
+def delete(object, *, bucket=S3_BUCKET, **kwargs):
     """Delete an object from S3.
 
     Parameters
@@ -58,10 +61,10 @@ def delete(object, **kwargs):
     * VersionId (string) -- VersionId used to reference a specific version of the object.
     * RequestPayer (string) -- Confirms that the requester knows that she or he will be charged for the request. Bucket owners need not specify this parameter in their requests. Documentation on downloading objects from requester pays buckets can be found at http://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
     """
-    return s3.delete_object(Bucket=S3_BUCKET, Key=object, **kwargs)
+    return s3.delete_object(Bucket=bucket, Key=object, **kwargs)
 
 
-def list_objects(**kwargs):
+def list_objects(*, bucket=S3_BUCKET, **kwargs):
     """List the objects in our bucket.
 
     This function yields objects and handles pagination for you. It will only fetch as many pages as you consume.
@@ -77,7 +80,7 @@ def list_objects(**kwargs):
     * RequestPayer (string) -- Confirms that the requester knows that she or he will be charged for the list objects request. Bucket owners need not specify this parameter in their requests.
     """
     if 'Bucket' not in kwargs:
-        kwargs['Bucket'] = S3_BUCKET
+        kwargs['Bucket'] = bucket
 
     while True:
         resp = s3.list_objects(**kwargs)
@@ -100,12 +103,12 @@ def list_objects(**kwargs):
             break
 
 
-def save_fd(fd, filename):
+def save_fd(fd, filename, *, bucket=S3_BUCKET):
     """Store the contents of a file-like object in the configured storage engine.
     """
     if STORAGE_ENGINE == 's3':
         logging.debug('Uploading %s to s3.', filename)
-        s3.upload_fileobj(fd, S3_BUCKET, filename)
+        s3.upload_fileobj(fd, bucket, filename)
     else:
         logging.debug('Writing to %s/%s.', FILESYSTEM_PATH, filename)
         if FILESYSTEM_PATH[0] == '/':
@@ -116,12 +119,12 @@ def save_fd(fd, filename):
         copyfileobj(fd, open(file_path, 'w'))
 
 
-def save_file(local_filename, remote_filename):
+def save_file(local_filename, remote_filename, *, bucket=S3_BUCKET):
     """Store the contents of a file in the configured storage engine.
     """
     if STORAGE_ENGINE == 's3':
         logging.debug('Uploading %s to s3: %s.', local_filename, remote_filename)
-        s3.upload_file(local_filename, S3_BUCKET, remote_filename)
+        s3.upload_file(local_filename, bucket, remote_filename)
     else:
         logging.debug('Writing to %s/%s.', FILESYSTEM_PATH, remote_filename)
         if FILESYSTEM_PATH[0] == '/':
@@ -132,12 +135,12 @@ def save_file(local_filename, remote_filename):
         copyfile(local_filename, remote_filename)
 
 
-def put(filename, value):
+def put(filename, value, *, bucket=S3_BUCKET):
     """Uploads an object to S3.
     """
     if STORAGE_ENGINE == 's3':
         try:
-            object = s3.put_object(Bucket=S3_BUCKET, Key=filename, Body=value)
+            object = s3.put_object(Bucket=bucket, Key=filename, Body=value)
             return object
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
@@ -154,13 +157,13 @@ def put(filename, value):
         open(file_path, 'w').write(value)
 
 
-def get_fd(filename):
+def get_fd(filename, *, bucket=S3_BUCKET):
     """Retrieve an object from S3 and return a file-like object
 
     FIXME: This doesn't work as a context manager.
     """
     if STORAGE_ENGINE == 's3':
-        s3_object = s3.get_object(Bucket=S3_BUCKET, Key=filename)
+        s3_object = s3.get_object(Bucket=bucket, Key=filename)
         return s3_object['Body']
 
     else:
@@ -171,21 +174,22 @@ def get_fd(filename):
             raise FileNotFoundError(filename)
 
 
-def get(filename):
+def get(filename, *, bucket=S3_BUCKET):
     """Retrieve an object from S3
     """
-    fd = get_fd(filename)
+    fd = get_fd(filename, bucket=bucket)
     data = fd.read()
+
     try:
         return data.decode('utf-8')
     except UnicodeDecodeError:
         return data
 
 
-def get_public_url(filename):
+def get_public_url(filename, *, bucket=S3_BUCKET):
     """Returns an S3 URL a client can use to download a file.
     """
-    params = {'Bucket': S3_BUCKET, 'Key': filename}
+    params = {'Bucket': bucket, 'Key': filename}
     return s3.generate_presigned_url(ClientMethod='get_object', Params=params, ExpiresIn=S3_DOWNLOAD_TIMEOUT)
 
 
