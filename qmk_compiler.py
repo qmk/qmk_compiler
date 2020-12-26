@@ -65,7 +65,7 @@ def store_firmware_binary(result):
 
     if result['public_firmware']:
         file_ext = result["firmware_filename"].split(".")[-1]
-        file_name = f'compiled/{result["keyboard"]}_default.{file_ext}'
+        file_name = f'compiled/{result["keyboard"]}/default.{file_ext}'
         qmk_storage.save_file(result['firmware_filename'], file_name, bucket=qmk_storage.COMPILE_S3_BUCKET, public=True)
 
 
