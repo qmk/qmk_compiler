@@ -119,12 +119,15 @@ def save_fd(fd, filename, *, bucket=S3_BUCKET):
         copyfileobj(fd, open(file_path, 'w'))
 
 
-def save_file(local_filename, remote_filename, *, bucket=S3_BUCKET):
+def save_file(local_filename, remote_filename, *, bucket=S3_BUCKET, public=False):
     """Store the contents of a file in the configured storage engine.
     """
     if STORAGE_ENGINE == 's3':
         logging.debug('Uploading %s to s3: %s.', local_filename, remote_filename)
-        s3.upload_file(local_filename, bucket, remote_filename)
+        if public:
+            s3.upload_file(local_filename, bucket, remote_filename, ExtraArgs={'ACL':'public-read'})
+        else:
+            s3.upload_file(local_filename, bucket, remote_filename)
     else:
         logging.debug('Writing to %s/%s.', FILESYSTEM_PATH, remote_filename)
         if FILESYSTEM_PATH[0] == '/':
@@ -135,12 +138,15 @@ def save_file(local_filename, remote_filename, *, bucket=S3_BUCKET):
         copyfile(local_filename, remote_filename)
 
 
-def put(filename, value, *, bucket=S3_BUCKET):
+def put(filename, value, *, bucket=S3_BUCKET, public=False):
     """Uploads an object to S3.
     """
     if STORAGE_ENGINE == 's3':
         try:
-            object = s3.put_object(Bucket=bucket, Key=filename, Body=value)
+            if public:
+                object = s3.put_object(Bucket=bucket, Key=filename, Body=value, ExtraArgs={'ACL':'public-read'})
+            else:
+                object = s3.put_object(Bucket=bucket, Key=filename, Body=value)
             return object
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
