@@ -90,6 +90,10 @@ def compile_keymap(job, result):
         result['returncode'] = 0
         result['firmware_filename'] = find_firmware_file()
 
+        if not result['firmware_filename']:
+            # Build returned success but no firmware file on disk
+            result['return_code'] = -4
+
     except CalledProcessError as build_error:
         print('Could not build firmware (%s): %s' % (build_error.cmd, build_error.output))
         result['returncode'] = build_error.returncode
