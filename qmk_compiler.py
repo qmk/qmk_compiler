@@ -57,7 +57,7 @@ def store_firmware_binary(result):
     """
     firmware_storage_path = '%(id)s/%(firmware_filename)s' % result
 
-    if not path.exists(result['firmware_filename']):
+    if not result['firmware_filename'] or not path.exists(result['firmware_filename']):
         return False
 
     qmk_storage.save_file(result['firmware_filename'], firmware_storage_path)
