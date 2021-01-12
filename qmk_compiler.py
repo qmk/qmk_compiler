@@ -100,9 +100,6 @@ def compile_keymap(job, result):
         result['cmd'] = build_error.cmd
         result['output'] = build_error.output
 
-    finally:
-        store_firmware_metadata(job, result)
-
 
 @job('default', connection=redis, timeout=900)
 def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public_firmware=False):
@@ -237,6 +234,8 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
 
         if send_metrics:
             graphyte.send(f'{base_metric}.{result["keyboard"]}.errors', 1)
+
+    store_firmware_metadata(job, result)
 
     return result
 
