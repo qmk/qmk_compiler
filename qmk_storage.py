@@ -30,7 +30,10 @@ __KEYMAP_GOES_HERE__
 };
 """
 
-# Objects we need to instaniate
+# Setup boto3 for talking to S3
+logging.getLogger('botocore').setLevel(logging.INFO)
+logging.getLogger('s3transfer').setLevel(logging.INFO)
+logging.getLogger('urllib3').setLevel(logging.INFO)
 session = boto3.session.Session()
 s3 = session.client(
     's3',
