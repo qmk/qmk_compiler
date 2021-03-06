@@ -234,9 +234,6 @@ def find_firmware_file(dir='.'):
 def git_hash():
     """Returns the current commit hash for qmk_firmware.
     """
-    if not os.path.exists('qmk_firmware'):
-        checkout_qmk()
-
     return open('qmk_firmware/version.txt').read().strip()
 
 
