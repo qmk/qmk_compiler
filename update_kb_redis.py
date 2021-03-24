@@ -64,7 +64,7 @@ def update_kb_redis():
 
     # Update the USB list
     usb_json = json.load((api_dir / 'usb.json').open())
-    redis_usb = usb_json['devices']
+    redis_usb = usb_json['usb']
     qmk_redis.set('qmk_api_usb_list', redis_usb)
 
     # Update the Keyboard list
