@@ -22,7 +22,7 @@ setup(
     author='skullY',
     author_email='skullydazed@gmail.com',
     install_requires=['rq'],
-    py_modules=['cleanup_storage', 'qmk_compiler', 'qmk_commands', 'qmk_redis', 'qmk_storage', 'qmk_errors', 'update_kb_redis'],
+    py_modules=['cleanup_storage', 'discord', 'qmk_compiler', 'qmk_commands', 'qmk_redis', 'qmk_storage', 'qmk_errors', 'update_kb_redis'],
     include_package_data=True,
     classifiers=[
         'Development Status :: 5 - Production/Stable',
