@@ -9,6 +9,12 @@ DISCORD_WEBHOOK_INFO_URL = os.environ.get('DISCORD_WEBHOOK_INFO_URL', DISCORD_WE
 DISCORD_WEBHOOK_WARNING_URL = os.environ.get('DISCORD_WEBHOOK_WARNING_URL', DISCORD_WEBHOOK_URL)
 DISCORD_WEBHOOK_ERROR_URL = os.environ.get('DISCORD_WEBHOOK_ERROR_URL', DISCORD_WEBHOOK_URL)
 
+severities = {
+    'error': (':open_mouth:', DISCORD_WEBHOOK_ERROR_URL),
+    'info': (':nerd_face:', DISCORD_WEBHOOK_INFO_URL),
+    'warning': (':upside_down_face:', DISCORD_WEBHOOK_WARNING_URL),
+}
+
 
 def message(severity, message, include_icon=True):
     """Send a simple text message to discord.
