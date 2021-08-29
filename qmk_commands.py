@@ -6,8 +6,7 @@ from shutil import rmtree
 from subprocess import check_output, CalledProcessError, STDOUT
 
 import qmk_storage
-from .discord import message as discord_msg, embed as discord_embed
-from .qmk_errors import NoSuchKeyboardError
+from qmk_errors import NoSuchKeyboardError
 
 ## Environment setup
 if 'GIT_BRANCH' in os.environ:
@@ -41,12 +40,6 @@ ZIP_EXCLUDES = {
     'qmk_firmware': ['qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'],
     'chibios': ['chibios/.git/*'],
     'chibios-contrib': ['chibios-contrib/.git/*'],
-}
-
-severities = {
-    'error': (':open_mouth:', DISCORD_WEBHOOK_ERROR_URL),
-    'info': (':nerd_face:', DISCORD_WEBHOOK_INFO_URL),
-    'warning': (':upside_down_face:', DISCORD_WEBHOOK_WARNING_URL),
 }
 
 
