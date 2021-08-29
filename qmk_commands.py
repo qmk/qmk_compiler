@@ -5,7 +5,7 @@ from pathlib import Path
 from shutil import rmtree
 from subprocess import check_output, CalledProcessError, STDOUT
 
-import .qmk_storage
+import qmk_storage
 from .discord import message as discord_msg, embed as discord_embed
 from .qmk_errors import NoSuchKeyboardError
 
