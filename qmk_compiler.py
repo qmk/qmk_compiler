@@ -138,7 +138,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         # Gather information
         result['keymap_archive'] = '%s-%s.json' % (result['keyboard'].replace('/', '-'), result['keymap'].replace('/', '-'))
         result['keymap_json'] = json.dumps(keyboard_keymap_data)
-        result['command'] = ['bin/qmk', 'compile', result['keymap_archive']]
+        result['command'] = ['qmk', 'compile', result['keymap_archive']]
         job = get_current_job()
         result['id'] = job.id
         branch = keyboard_keymap_data.get('branch', QMK_GIT_BRANCH)

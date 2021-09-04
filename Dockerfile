@@ -1,4 +1,4 @@
-FROM qmkfm/base_container
+FROM qmkfm/qmk_cli
 MAINTAINER Zach White <skullydazed@gmail.com>
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
