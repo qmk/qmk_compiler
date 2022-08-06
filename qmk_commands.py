@@ -162,7 +162,7 @@ def find_firmware_file(dir='.'):
     assumption is that there will only be one.
     """
     for file in os.listdir(dir):
-        if file[-4:] in ('.hex', '.bin'):
+        if file[-4:] in ('.hex', '.bin', '.uf2'):
             return file
 
 
