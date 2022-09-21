@@ -129,7 +129,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
     if DEBUG:
         print('Pointing graphite at', GRAPHITE_HOST)
 
-    send_metrics=False
+    send_metrics=True
     if send_metrics:
         graphyte.init(GRAPHITE_HOST, GRAPHITE_PORT)
 
