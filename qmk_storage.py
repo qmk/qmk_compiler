@@ -10,7 +10,7 @@ import botocore.exceptions
 # Configuration
 STORAGE_ENGINE = environ.get('STORAGE_ENGINE', 's3')  # 's3' or 'filesystem'
 FILESYSTEM_PATH = environ.get('FILESYSTEM_PATH', 'firmwares')
-S3_HOST = environ.get('S3_HOST', 'http://127.0.0.1:9000')
+S3_HOST = environ.get('S3_HOST', None)
 S3_LOCATION = environ.get('S3_LOCATION', 'nyc3')
 S3_BUCKET = environ.get('S3_BUCKET', 'qmk-api')
 COMPILE_S3_BUCKET = environ.get('COMPILE_S3_BUCKET', 'qmk')
@@ -41,17 +41,17 @@ s3 = session.client(
     endpoint_url=S3_HOST,
     aws_access_key_id=S3_ACCESS_KEY,
     aws_secret_access_key=S3_SECRET_KEY,
-    config=botocore.client.Config(signature_version='s3'),
+    config=botocore.config.Config(signature_version='s3v4')
 )
 
 # Check to see if S3 is working, and if not print an error in the log.
 for bucket in [S3_BUCKET, COMPILE_S3_BUCKET]:
     try:
-        s3.create_bucket(Bucket=bucket)
+        s3.get_bucket_location(Bucket=bucket)
 
     except botocore.exceptions.ClientError as e:
-        if e.response['Error']['Code'] not in ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists']:
-            logging.warning('Could not contact S3! Storage related functionality will not work!')
+        msg = 'Could not contact S3 bucket "%s"! Storage related functionality will not work!' % bucket
+        logging.warning('%s [%s]: "%s"' % (msg, e.response['Error']['Code'], e.response['Error']['Message']))
 
 
 def delete(object, *, bucket=S3_BUCKET, **kwargs):
