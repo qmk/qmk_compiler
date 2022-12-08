@@ -39,9 +39,14 @@ You can compile this keymap using this command: `qmk compile {keymap}`"
 """
 
 ZIP_EXCLUDES = {
-    'qmk_firmware': ['qmk_firmware/.build/*', 'qmk_firmware/.git/*', 'qmk_firmware/lib/chibios/.git', 'qmk_firmware/lib/chibios-contrib/.git'],
-    'chibios': ['chibios/.git/*'],
-    'chibios-contrib': ['chibios-contrib/.git/*'],
+    'qmk_firmware': [
+        'qmk_firmware/.build/*',
+        'qmk_firmware/.git/*',
+        'qmk_firmware/lib/chibios/.git/*',
+        'qmk_firmware/lib/chibios-contrib/.git/*',
+        'qmk_firmware/lib/lufa/.git/*',
+        'qmk_firmware/lib/vusb/.git/*',
+    ],
 }
 
 
