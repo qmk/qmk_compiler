@@ -41,7 +41,6 @@ s3 = session.client(
     endpoint_url=S3_HOST,
     aws_access_key_id=S3_ACCESS_KEY,
     aws_secret_access_key=S3_SECRET_KEY,
-    config=botocore.client.Config(signature_version='s3'),
 )
 
 # Check to see if S3 is working, and if not print an error in the log.
