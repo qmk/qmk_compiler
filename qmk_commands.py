@@ -47,8 +47,6 @@ ZIP_EXCLUDES = {
         'qmk_firmware/lib/lufa/.git/*',
         'qmk_firmware/lib/vusb/.git/*',
     ],
-    'chibios': ['chibios/.git/*'],
-    'chibios-contrib': ['chibios-contrib/.git/*'],
 }
 
 
