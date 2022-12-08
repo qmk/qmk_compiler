@@ -144,6 +144,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         job = get_current_job()
         result['id'] = job.id
         branch = keyboard_keymap_data.get('branch', QMK_GIT_BRANCH)
+        converter = keyboard_keymap_data.get('converter', None)
 
         # Fetch the appropriate version of QMK
         git_start_time = time()
@@ -167,6 +168,10 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         kb_info = info_json(result['keyboard'])
         if 'protocol' not in kb_info:
             kb_info['protocol'] = 'unknown'
+
+        # FIXME: Query qmk_firmware as not all converters will be ChibiOS
+        if converter:
+            kb_info['protocol'] = 'ChibiOS'
 
         if kb_info['protocol'] in ['ChibiOS', 'LUFA']:
             checkout_lufa()
