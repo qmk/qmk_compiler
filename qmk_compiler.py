@@ -196,8 +196,11 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         storage_start_time = time()
         store_firmware_binary(result)
         chdir('..')
-        store_firmware_source(result)
-        remove(result['source_archive'])
+
+        if not public_firmware:
+            store_firmware_source(result)
+            remove(result['source_archive'])
+
         storage_time = time() - storage_start_time
 
         # Send metrics about this build
