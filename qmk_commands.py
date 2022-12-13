@@ -20,6 +20,8 @@ CHIBIOS_GIT_BRANCH = os.environ.get('CHIBIOS_GIT_BRANCH', 'master')
 CHIBIOS_GIT_URL = os.environ.get('CHIBIOS_GIT_URL', 'https://github.com/qmk/ChibiOS')
 CHIBIOS_CONTRIB_GIT_BRANCH = os.environ.get('CHIBIOS_CONTRIB_GIT_BRANCH', 'master')
 CHIBIOS_CONTRIB_GIT_URL = os.environ.get('CHIBIOS_CONTRIB_GIT_URL', 'https://github.com/qmk/ChibiOS-Contrib')
+MCUX_SDK_GIT_BRANCH = os.environ.get('MCUX_SDK_GIT_BRANCH', 'main')
+MCUX_SDK_GIT_URL = os.environ.get('MCUX_SDK_GIT_URL', 'https://github.com/qmk/mcux-sdk')
 PRINTF_GIT_BRANCH = os.environ.get('PRINTF_GIT_BRANCH', 'master')
 PRINTF_GIT_URL = os.environ.get('PRINTF_GIT_URL', 'https://github.com/qmk/printf')
 PICOSDK_GIT_BRANCH = os.environ.get('PICOSDK_GIT_BRANCH', 'master')
@@ -44,8 +46,12 @@ ZIP_EXCLUDES = {
         'qmk_firmware/.git/*',
         'qmk_firmware/lib/chibios/.git/*',
         'qmk_firmware/lib/chibios-contrib/.git/*',
+        'qmk_firmware/lib/chibios-contrib/ext/mcux-sdk/.git/*',
+        'qmk_firmware/lib/googletest/.git/*',
         'qmk_firmware/lib/lufa/.git/*',
+        'qmk_firmware/lib/printf/.git/*',
         'qmk_firmware/lib/vusb/.git/*',
+        'qmk_firmware/lib/pico-sdk/.git/*',
     ],
 }
 
@@ -88,6 +94,7 @@ def checkout_chibios():
     checkout_submodule('chibios-contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
     checkout_submodule('printf', PRINTF_GIT_URL, PRINTF_GIT_BRANCH)
     checkout_submodule('pico-sdk', PICOSDK_GIT_URL, PICOSDK_GIT_BRANCH)
+    checkout_submodule('chibios-contrib/ext/mcux-sdk', MCUX_SDK_GIT_URL, MCUX_SDK_GIT_BRANCH)
 
 
 def checkout_lufa():
