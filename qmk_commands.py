@@ -14,6 +14,7 @@ if 'GIT_BRANCH' in os.environ:
         if key not in os.environ:
             os.environ[key] = os.environ['GIT_BRANCH']
 
+QMK_FIRMWARE_PATH = Path(os.environ.get('QMK_FIRMWARE_PATH', 'qmk_firmware')).resolve()
 QMK_GIT_BRANCH = os.environ.get('QMK_GIT_BRANCH', 'master')
 QMK_GIT_URL = os.environ.get('QMK_GIT_URL', 'https://github.com/qmk/qmk_firmware.git')
 CHIBIOS_GIT_BRANCH = os.environ.get('CHIBIOS_GIT_BRANCH', 'master')
@@ -40,20 +41,18 @@ You can convert this file to a keymap.c using this command: `qmk json2c {keymap}
 You can compile this keymap using this command: `qmk compile {keymap}`"
 """
 
-ZIP_EXCLUDES = {
-    'qmk_firmware': [
-        'qmk_firmware/.build/*',
-        'qmk_firmware/.git/*',
-        'qmk_firmware/lib/chibios/.git/*',
-        'qmk_firmware/lib/chibios-contrib/.git/*',
-        'qmk_firmware/lib/chibios-contrib/ext/mcux-sdk/.git/*',
-        'qmk_firmware/lib/googletest/.git/*',
-        'qmk_firmware/lib/lufa/.git/*',
-        'qmk_firmware/lib/printf/.git/*',
-        'qmk_firmware/lib/vusb/.git/*',
-        'qmk_firmware/lib/pico-sdk/.git/*',
-    ],
-}
+ZIP_EXCLUDES = [
+    '.build/*',
+    '.git/*',
+    'lib/chibios/.git/*',
+    'lib/chibios-contrib/.git/*',
+    'lib/chibios-contrib/ext/mcux-sdk/.git/*',
+    'lib/googletest/.git/*',
+    'lib/lufa/.git/*',
+    'lib/printf/.git/*',
+    'lib/vusb/.git/*',
+    'lib/pico-sdk/.git/*',
+]
 
 
 ## Helper functions
@@ -68,52 +67,49 @@ def checkout_qmk(skip_cache=False, require_cache=False, branch=QMK_GIT_BRANCH):
     if skip_cache and require_cache:
         raise ValueError('skip_cache and require_cache conflict!')
 
-    if os.path.exists('qmk_firmware'):
-        rmtree('qmk_firmware')
+    if QMK_FIRMWARE_PATH.exists():
+        rmtree(QMK_FIRMWARE_PATH)
 
-    git_clone('qmk_firmware', QMK_GIT_URL, branch)
+    git_clone(QMK_FIRMWARE_PATH, QMK_GIT_URL, branch)
 
 
-def checkout_submodule(name, url, branch):
+def checkout_submodule(relative_path, url, branch):
     """Clone a submodule to the lib directory.
     """
-    os.chdir('lib')
+    submodule_path = (QMK_FIRMWARE_PATH / relative_path).resolve()
 
-    if os.path.exists(name):
-        rmtree(name)
+    if submodule_path.exists():
+        rmtree(submodule_path)
 
-    git_clone(name, url, branch)
-
-    os.chdir('..')
+    git_clone(submodule_path, url, branch)
 
 
 def checkout_chibios():
     """Do whatever is needed to get the latest version of ChibiOS and ChibiOS-Contrib.
     """
-    checkout_submodule('chibios', CHIBIOS_GIT_URL, CHIBIOS_GIT_BRANCH)
-    checkout_submodule('chibios-contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
-    checkout_submodule('printf', PRINTF_GIT_URL, PRINTF_GIT_BRANCH)
-    checkout_submodule('pico-sdk', PICOSDK_GIT_URL, PICOSDK_GIT_BRANCH)
-    checkout_submodule('chibios-contrib/ext/mcux-sdk', MCUX_SDK_GIT_URL, MCUX_SDK_GIT_BRANCH)
+    checkout_submodule('lib/chibios', CHIBIOS_GIT_URL, CHIBIOS_GIT_BRANCH)
+    checkout_submodule('lib/chibios-contrib', CHIBIOS_CONTRIB_GIT_URL, CHIBIOS_CONTRIB_GIT_BRANCH)
+    checkout_submodule('lib/printf', PRINTF_GIT_URL, PRINTF_GIT_BRANCH)
+    checkout_submodule('lib/pico-sdk', PICOSDK_GIT_URL, PICOSDK_GIT_BRANCH)
+    checkout_submodule('lib/chibios-contrib/ext/mcux-sdk', MCUX_SDK_GIT_URL, MCUX_SDK_GIT_BRANCH)
 
 
 def checkout_lufa():
     """Do whatever is needed to get the latest version of LUFA.
     """
-    checkout_submodule('lufa', LUFA_GIT_URL, LUFA_GIT_BRANCH)
+    checkout_submodule('lib/lufa', LUFA_GIT_URL, LUFA_GIT_BRANCH)
 
 
 def checkout_vusb():
     """Do whatever is needed to get the latest version of V-USB.
     """
-    checkout_submodule('vusb', VUSB_GIT_URL, VUSB_GIT_BRANCH)
+    checkout_submodule('lib/vusb', VUSB_GIT_URL, VUSB_GIT_BRANCH)
 
 
 def git_clone(repo, git_url, git_branch):
     """Clone a git repo.
     """
-    zipfile_name = repo + '.zip'
-    command = ['git', 'clone', '-q', '--depth', '1', '-b', git_branch, git_url, repo]
+    command = ['git', 'clone', '-q', '--depth', '1', '-b', git_branch, git_url, str(repo)]
 
     try:
         logging.debug('Cloning repository: %s', ' '.join(command))
@@ -127,7 +123,7 @@ def git_clone(repo, git_url, git_branch):
         logging.error("Could not clone %s: %s (returncode: %s)" % (repo, build_error.output, build_error.returncode))
         logging.exception(build_error)
 
-    os.chdir('..')
+    os.chdir(QMK_FIRMWARE_PATH)
 
     return True
 
@@ -145,12 +141,9 @@ def find_keymap_path(keyboard, keymap):
 def store_source(zipfile_name, directory, storage_directory):
     """Store a copy of source in storage.
     """
-    if directory in ZIP_EXCLUDES:
-        excludes = ['-x'] * (len(ZIP_EXCLUDES[directory]) * 2)
-        excludes[1::2] = ZIP_EXCLUDES[directory]
-        zip_command = ['zip'] + excludes + ['-q', '-r', zipfile_name, directory]
-    else:
-        zip_command = ['zip', '-q', '-r', zipfile_name, directory]
+    excludes = ['-x'] * (len(ZIP_EXCLUDES) * 2)
+    excludes[1::2] = ZIP_EXCLUDES
+    zip_command = ['zip'] + excludes + ['-q', '-r', zipfile_name, directory]
 
     if os.path.exists(zipfile_name):
         os.remove(zipfile_name)

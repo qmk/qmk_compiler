@@ -18,6 +18,8 @@ import qmk_storage
 from qmk_commands import QMK_GIT_BRANCH, checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
 from qmk_redis import redis
 
+QMK_FIRMWARE_PATH = Path(os.environ.get('QMK_FIRMWARE_PATH', 'qmk_firmware')).resolve()
+
 DEBUG = int(environ.get('DEBUG', 0))
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
 GRAPHITE_HOST = environ.get('GRAPHITE_HOST', 'qmk_metrics_aggregator')
@@ -78,7 +80,7 @@ def store_firmware_source(result):
     # Store the full source
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
-    store_source(result['source_archive'], 'qmk_firmware', result['id'])
+    store_source(result['source_archive'], QMK_FIRMWARE_PATH, result['id'])
     result['firmware_keymap_url'] = ['/'.join((API_URL, 'v1', 'compile', result['id'], 'keymap'))]
     result['firmware_source_url'] = ['/'.join((API_URL, 'v1', 'compile', result['id'], 'source'))]
 
@@ -150,7 +152,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         git_start_time = time()
         checkout_qmk(branch=branch)
         git_time = time() - git_start_time
-        chdir('qmk_firmware')
+        chdir(QMK_FIRMWARE_PATH)
 
         # Sanity check
         if not path.exists('keyboards/' + result['keyboard']):
