@@ -68,7 +68,7 @@ def checkout_qmk(skip_cache=False, require_cache=False, branch=QMK_GIT_BRANCH):
         raise ValueError('skip_cache and require_cache conflict!')
 
     if QMK_FIRMWARE_PATH.exists():
-        rmtree(QMK_FIRMWARE_PATH)
+        rmtree(str(QMK_FIRMWARE_PATH))
 
     git_clone(QMK_FIRMWARE_PATH, QMK_GIT_URL, branch)
 
@@ -79,7 +79,7 @@ def checkout_submodule(relative_path, url, branch):
     submodule_path = (QMK_FIRMWARE_PATH / relative_path).resolve()
 
     if submodule_path.exists():
-        rmtree(submodule_path)
+        rmtree(str(submodule_path))
 
     git_clone(submodule_path, url, branch)
 
