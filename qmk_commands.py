@@ -143,19 +143,23 @@ def store_source(zipfile_name, directory, storage_directory):
     """
     excludes = ['-x'] * (len(ZIP_EXCLUDES) * 2)
     excludes[1::2] = ZIP_EXCLUDES
-    zip_command = ['zip'] + excludes + ['-q', '-r', zipfile_name, directory]
+    zip_command = ['zip'] + excludes + ['-q', '-r', zipfile_name, '.'] # path of '.' will be relative to the os.chdir() below
 
     if os.path.exists(zipfile_name):
         os.remove(zipfile_name)
 
+    orig_cwd = os.getcwd()
     try:
         logging.debug('Zipping Source: %s', zip_command)
+        os.chdir(directory)
         check_output(zip_command)
     except CalledProcessError as build_error:
         logging.error('Could not zip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
         logging.error(build_error.output)
         os.remove(zipfile_name)
         return False
+    finally:
+        os.chdir(orig_cwd)
 
     qmk_storage.save_file(zipfile_name, os.path.join(storage_directory, zipfile_name))
 
