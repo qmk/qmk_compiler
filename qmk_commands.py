@@ -42,6 +42,7 @@ You can compile this keymap using this command: `qmk compile {keymap}`"
 """
 
 ZIP_EXCLUDES = [
+    '*.zip',
     '.build/*',
     '.git/*',
     'lib/chibios/.git/*',
@@ -143,10 +144,12 @@ def store_source(zipfile_name, directory, storage_directory):
     """
     excludes = ['-x'] * (len(ZIP_EXCLUDES) * 2)
     excludes[1::2] = ZIP_EXCLUDES
-    zip_command = ['zip'] + excludes + ['-q', '-r', zipfile_name, '.'] # path of '.' will be relative to the os.chdir() below
 
-    if os.path.exists(zipfile_name):
-        os.remove(zipfile_name)
+    zipfile_output = (directory / zipfile_name).resolve()
+    zip_command = ['zip'] + excludes + ['-q', '-r', str(zipfile_output), '.'] # path of '.' will be relative to the os.chdir() below
+
+    if os.path.exists(zipfile_output):
+        os.remove(zipfile_output)
 
     orig_cwd = os.getcwd()
     try:
@@ -156,12 +159,12 @@ def store_source(zipfile_name, directory, storage_directory):
     except CalledProcessError as build_error:
         logging.error('Could not zip source, Return Code %s, Command %s', build_error.returncode, build_error.cmd)
         logging.error(build_error.output)
-        os.remove(zipfile_name)
+        os.remove(zipfile_output)
         return False
     finally:
         os.chdir(orig_cwd)
 
-    qmk_storage.save_file(zipfile_name, os.path.join(storage_directory, zipfile_name))
+    qmk_storage.save_file(str(zipfile_output), os.path.join(storage_directory, zipfile_name))
 
     return True
 
