@@ -29,7 +29,7 @@ def test_0000_checkout_qmk_master():
     """Make sure that we successfully git clone qmk_firmware and generate the version.txt hash.
     """
     qmk_commands.checkout_qmk(branch='master')
-    assert os.path.exists('qmk_firmware/version.txt')
+    assert (qmk_commands.QMK_FIRMWARE_PATH / 'version.txt').exists()
 
 
 ############################################################################
@@ -69,5 +69,5 @@ def test_0013_git_hash():
 
 
 def test_9999_teardown():
-    shutil.rmtree('qmk_firmware')
-    assert not os.path.exists('qmk_firmware')
+    shutil.rmtree(str(qmk_commands.QMK_FIRMWARE_PATH))
+    assert not qmk_commands.QMK_FIRMWARE_PATH.exists()

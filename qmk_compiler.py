@@ -3,6 +3,7 @@ import logging
 import sys
 from io import BytesIO
 from os import chdir, environ, path, remove
+from pathlib import Path
 from socket import gethostname
 from subprocess import check_output, CalledProcessError, STDOUT
 from time import strftime, time
@@ -15,7 +16,7 @@ from rq.decorators import job
 
 import qmk_redis
 import qmk_storage
-from qmk_commands import QMK_GIT_BRANCH, checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
+from qmk_commands import QMK_FIRMWARE_PATH, QMK_GIT_BRANCH, checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
 from qmk_redis import redis
 
 DEBUG = int(environ.get('DEBUG', 0))
@@ -78,7 +79,7 @@ def store_firmware_source(result):
     # Store the full source
     result['source_archive'] = 'qmk_firmware-%(keyboard)s-%(keymap)s.zip' % (result)
     result['source_archive'] = result['source_archive'].replace('/', '-')
-    store_source(result['source_archive'], 'qmk_firmware', result['id'])
+    store_source(result['source_archive'], QMK_FIRMWARE_PATH, result['id'])
     result['firmware_keymap_url'] = ['/'.join((API_URL, 'v1', 'compile', result['id'], 'keymap'))]
     result['firmware_source_url'] = ['/'.join((API_URL, 'v1', 'compile', result['id'], 'source'))]
 
@@ -150,7 +151,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         git_start_time = time()
         checkout_qmk(branch=branch)
         git_time = time() - git_start_time
-        chdir('qmk_firmware')
+        chdir(QMK_FIRMWARE_PATH)
 
         # Sanity check
         if not path.exists('keyboards/' + result['keyboard']):

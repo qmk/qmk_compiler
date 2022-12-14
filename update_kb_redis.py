@@ -10,7 +10,7 @@ import re
 from rq.decorators import job
 
 import qmk_redis
-from qmk_commands import checkout_qmk, memoize, git_hash
+from qmk_commands import QMK_FIRMWARE_PATH, checkout_qmk, memoize, git_hash
 
 debug = False
 
@@ -27,7 +27,6 @@ def update_kb_redis():
     """Called to update qmk_firmware.
     """
     update_kb_redis = Path('update_kb_redis')
-    qmk_firmware = Path('qmk_firmware')
 
     # Clean up the environment and fetch the latest source
     if not debug:
@@ -38,11 +37,11 @@ def update_kb_redis():
         update_kb_redis.mkdir()
         chdir(update_kb_redis)
 
-    if not debug or not qmk_firmware.exists():
+    if not debug or not QMK_FIRMWARE_PATH.exists():
         checkout_qmk(skip_cache=True)
 
     # Enter the qmk_firmware directory
-    chdir(qmk_firmware)
+    chdir(QMK_FIRMWARE_PATH)
 
     # Update redis with the latest keyboard data
     run(['qmk', 'generate-api'])
