@@ -16,10 +16,8 @@ from rq.decorators import job
 
 import qmk_redis
 import qmk_storage
-from qmk_commands import QMK_GIT_BRANCH, checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
+from qmk_commands import QMK_FIRMWARE_PATH, QMK_GIT_BRANCH, checkout_qmk, find_firmware_file, store_source, checkout_chibios, checkout_lufa, checkout_vusb, write_version_txt
 from qmk_redis import redis
-
-QMK_FIRMWARE_PATH = Path(environ.get('QMK_FIRMWARE_PATH', 'qmk_firmware')).resolve()
 
 DEBUG = int(environ.get('DEBUG', 0))
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')

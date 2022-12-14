@@ -130,9 +130,9 @@ def git_clone(repo, git_url, git_branch):
 
 def find_keymap_path(keyboard, keymap):
     for directory in ['.', '..', '../..', '../../..', '../../../..', '../../../../..']:
-        basepath = os.path.normpath('qmk_firmware/keyboards/%s/%s/keymaps' % (keyboard, directory))
-        if os.path.exists(basepath):
-            return '/'.join((basepath, keymap))
+        basepath = (QMK_FIRMWARE_PATH / ('/keyboards/%s/%s/keymaps' % (keyboard, directory))).resolve()
+        if basepath.exists():
+            return basepath / keymap
 
     logging.error('Could not find keymaps directory!')
     raise NoSuchKeyboardError('Could not find keymaps directory for: %s' % keyboard)
@@ -177,7 +177,7 @@ def find_firmware_file(dir='.'):
 def git_hash():
     """Returns the current commit hash for qmk_firmware.
     """
-    return open('qmk_firmware/version.txt').read().strip()
+    return open(QMK_FIRMWARE_PATH / 'version.txt').read().strip()
 
 
 def memoize(obj):
