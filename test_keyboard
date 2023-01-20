@@ -34,7 +34,7 @@ job = compile_firmware.delay(keyboard_name, 'cli_test_compile', layout_macro, la
 print('Successfully enqueued job_id %s, polling every 5 seconds.' % (job.id,))
 started = False
 print('Waiting to start compiling...', end="", flush=True)
-while job.get_status() in ['queued', 'deferred', 'started']:
+while job.get_status() in ['queued', 'deferred', 'started'] and job.result is None:
     if not started and job.get_status() == 'started':
         started = True
         print('\nWorker has picked up job and begun to compile.')
@@ -42,10 +42,11 @@ while job.get_status() in ['queued', 'deferred', 'started']:
     sleep(5)
     print('.', end="", flush=True)
 
-if job.result and job.result['returncode'] == 0:
+result = job.result
+if result['returncode'] == 0:
     print('\nCompile job completed successfully!')
     exit(0)
 else:
-    print('\nCould not compile %s, layout %s, return code %s' % (keyboard_name, layout_macro, job.result['returncode']))
-    print(job.result['output'])
+    print('\nCould not compile %s, layout %s, return code %s' % (keyboard_name, layout_macro, result['returncode']))
+    print(result['output'])
     exit(1)
