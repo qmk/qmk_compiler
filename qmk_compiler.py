@@ -200,7 +200,6 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
 
         if not public_firmware:
             store_firmware_source(result)
-            remove(result['source_archive'])
 
         storage_time = time() - storage_start_time
 

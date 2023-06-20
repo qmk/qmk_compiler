@@ -165,6 +165,7 @@ def store_source(zipfile_name, directory, storage_directory):
         os.chdir(orig_cwd)
 
     qmk_storage.save_file(str(zipfile_output), os.path.join(storage_directory, zipfile_name))
+    os.remove(zipfile_output)
 
     return True
 
