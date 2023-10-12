@@ -6,7 +6,7 @@ flake8
 graphyte
 rq
 pygments
-python-geoip-python3
-python-geoip-geolite2
+python-geoip-yplan
+python-geoip-geolite2-yplan
 pytest
 pytz
