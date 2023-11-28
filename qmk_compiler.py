@@ -162,6 +162,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         if './lib/python' not in sys.path:
             sys.path.append('./lib/python')
 
+        environ['ORIG_CWD'] = str(QMK_FIRMWARE_PATH)
         from qmk.info import info_json
 
         # If this keyboard needs a submodule check it out
