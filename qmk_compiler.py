@@ -24,14 +24,6 @@ API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
 GRAPHITE_HOST = environ.get('GRAPHITE_HOST', 'qmk_metrics_aggregator')
 GRAPHITE_PORT = int(environ.get('GRAPHITE_PORT', 2023))
 
-# The `keymap.c` template to use when a keyboard doesn't have its own
-DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
-
-const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-__KEYMAP_GOES_HERE__
-};
-"""
-
 
 # Local Helper Functions
 def store_firmware_metadata(job, result):

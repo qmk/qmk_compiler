@@ -19,16 +19,6 @@ S3_SECRET_KEY = environ.get('S3_SECRET_KEY', 'minio_dev_secret')
 S3_SECURE = False
 S3_DOWNLOAD_TIMEOUT = 7200  # 2 hours, how long S3 download URLs are good for
 
-# The `keymap.c` template to use when a keyboard doesn't have its own
-DEFAULT_KEYMAP_C = """#include QMK_KEYBOARD_H
-
-// Helpful defines
-#define _______ KC_TRNS
-
-const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-__KEYMAP_GOES_HERE__
-};
-"""
 
 # Setup boto3 for talking to S3
 logging.getLogger('botocore').setLevel(logging.INFO)
