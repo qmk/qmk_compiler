@@ -1,6 +1,5 @@
 beautifulsoup4
 boto3
-cchardet
 dhooks
 flake8
 graphyte
