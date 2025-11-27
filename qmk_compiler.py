@@ -9,7 +9,6 @@ from subprocess import check_output, CalledProcessError, STDOUT
 from time import strftime, time
 from traceback import format_exc
 
-import graphyte
 from geoip import geolite2
 from rq import get_current_job
 from rq.decorators import job
@@ -21,8 +20,6 @@ from qmk_redis import redis
 
 DEBUG = int(environ.get('DEBUG', 0))
 API_URL = environ.get('API_URL', 'https://api.qmk.fm/')
-GRAPHITE_HOST = environ.get('GRAPHITE_HOST', 'qmk_metrics_aggregator')
-GRAPHITE_PORT = int(environ.get('GRAPHITE_PORT', 2023))
 
 
 # Local Helper Functions
@@ -106,7 +103,6 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         source_ip
             The IP that submitted the compile job
     """
-    start_time = time()
     base_metric = f'{gethostname()}.qmk_compiler.compile_json'
     result = {
         'keyboard': 'unknown',
@@ -118,13 +114,6 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         'output': 'Unknown error',
         'public_firmware': public_firmware,
     }
-
-    if DEBUG:
-        print('Pointing graphite at', GRAPHITE_HOST)
-
-    send_metrics=True
-    if send_metrics:
-        graphyte.init(GRAPHITE_HOST, GRAPHITE_PORT)
 
     try:
         for key in ('keyboard', 'layout', 'keymap'):
@@ -140,9 +129,7 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         converter = keyboard_keymap_data.get('converter', None)
 
         # Fetch the appropriate version of QMK
-        git_start_time = time()
         checkout_qmk(branch=branch)
-        git_time = time() - git_start_time
         chdir(QMK_FIRMWARE_PATH)
 
         # Sanity check
@@ -158,7 +145,6 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
         from qmk.info import info_json
 
         # If this keyboard needs a submodule check it out
-        submodule_start_time = time()
         kb_info = info_json(result['keyboard'])
         if 'protocol' not in kb_info:
             kb_info['protocol'] = 'unknown'
@@ -175,68 +161,25 @@ def compile_json(keyboard_keymap_data, source_ip=None, send_metrics=True, public
 
         if kb_info['protocol'] == 'V-USB':
             checkout_vusb()
-        submodule_time = time() - submodule_start_time
 
         # Write the keymap file
         with open(result['keymap_archive'], 'w') as fd:
             fd.write(result['keymap_json'] + '\n')
 
         # Compile the firmware
-        compile_start_time = time()
         compile_keymap(job, result)
-        compile_time = time() - compile_start_time
 
         # Store the source in S3
-        storage_start_time = time()
         store_firmware_binary(result)
         chdir('..')
 
         if not public_firmware:
             store_firmware_source(result)
 
-        storage_time = time() - storage_start_time
-
-        # Send metrics about this build
-        if send_metrics:
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.all_layouts', 1)
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.{result["layout"]}', 1)
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.git_time', git_time)
-            graphyte.send(f'{base_metric}.all_keyboards.git_time', git_time)
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.submodule_time', submodule_time)
-            graphyte.send(f'{base_metric}.all_keyboards.submodule_time', submodule_time)
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.compile_time', compile_time)
-            graphyte.send(f'{base_metric}.all_keyboards.compile_time', compile_time)
-
-            if result['returncode'] == 0:
-                graphyte.send(f'{base_metric}.{result["keyboard"]}.compile_time', compile_time)
-                graphyte.send(f'{base_metric}.all_keyboards.compile_time', compile_time)
-            else:
-                graphyte.send(f'{base_metric}.{result["keyboard"]}.errors', 1)
-
-            if source_ip:
-                ip_location = geolite2.lookup(source_ip)
-
-                if ip_location:
-                    if ip_location.subdivisions:
-                        location_key = f'{ip_location.country}_{"_".join(ip_location.subdivisions)}'
-                    else:
-                        location_key = ip_location.country
-
-                    graphyte.send(f'{gethostname()}.qmk_compiler.geoip.{location_key}', 1)
-
-            total_time = time() - start_time
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.storage_time', storage_time)
-            graphyte.send(f'{base_metric}.all_keyboards.storage_time', storage_time)
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.total_time', total_time)
-            graphyte.send(f'{base_metric}.all_keyboards.total_time', total_time)
-
     except Exception as e:
         result['returncode'] = -3
         result['exception'] = e.__class__.__name__
         result['stacktrace'] = format_exc()
-
-        if send_metrics:
-            graphyte.send(f'{base_metric}.{result["keyboard"]}.errors', 1)
 
     store_firmware_metadata(job, result)
 
