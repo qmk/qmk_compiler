@@ -31,6 +31,8 @@ LUFA_GIT_BRANCH = os.environ.get('LUFA_GIT_BRANCH', 'qmk-master')
 LUFA_GIT_URL = os.environ.get('LUFA_GIT_URL', 'https://github.com/qmk/lufa')
 VUSB_GIT_BRANCH = os.environ.get('VUSB_GIT_BRANCH', 'qmk-master')
 VUSB_GIT_URL = os.environ.get('VUSB_GIT_URL', 'https://github.com/qmk/v-usb')
+LVGL_GIT_BRANCH = os.environ.get('LVGL_GIT_BRANCH', 'qmk-master')
+LVGL_GIT_URL = os.environ.get('LVGL_GIT_URL', 'https://github.com/qmk/lvgl')
 
 KEYMAP_DOCUMENTATION = """"This file is a QMK Configurator export. You can import this at <https://config.qmk.fm>. It can also be used directly with QMK's source code.
 
@@ -53,6 +55,7 @@ ZIP_EXCLUDES = [
     'lib/printf/.git/*',
     'lib/vusb/.git/*',
     'lib/pico-sdk/.git/*',
+    'lib/lvgl/.git/*',
 ]
 
 
@@ -93,6 +96,7 @@ def checkout_chibios():
     checkout_submodule('lib/printf', PRINTF_GIT_URL, PRINTF_GIT_BRANCH)
     checkout_submodule('lib/pico-sdk', PICOSDK_GIT_URL, PICOSDK_GIT_BRANCH)
     checkout_submodule('lib/chibios-contrib/ext/mcux-sdk', MCUX_SDK_GIT_URL, MCUX_SDK_GIT_BRANCH)
+    checkout_submodule('lib/lvgl', LVGL_GIT_URL, LVGL_GIT_BRANCH)
 
 
 def checkout_lufa():
